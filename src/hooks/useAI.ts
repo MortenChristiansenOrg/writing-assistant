@@ -1,0 +1,93 @@
+import { useCompletion } from '@ai-sdk/react'
+import { useQuery, useMutation } from 'convex/react'
+import { api } from '../../convex/_generated/api'
+import { toast } from 'sonner'
+import { useState } from 'react'
+
+export type AIAction =
+  | 'rewrite'
+  | 'shorter'
+  | 'longer'
+  | 'formal'
+  | 'casual'
+  | 'fix_grammar'
+
+interface UseAIOptions {
+  onComplete?: (result: string) => void
+  onError?: (error: Error) => void
+}
+
+export function useAI(options: UseAIOptions = {}) {
+  const settings = useQuery(api.userSettings.get)
+  const recordSpending = useMutation(api.spending.record)
+  const [isStreaming, setIsStreaming] = useState(false)
+
+  const {
+    completion,
+    complete,
+    isLoading,
+    error,
+    stop,
+    setCompletion,
+  } = useCompletion({
+    api: '/api/ai/stream',
+    onFinish: (_prompt, result) => {
+      setIsStreaming(false)
+      options.onComplete?.(result)
+
+      // Estimate token usage (rough approximation)
+      const inputTokens = Math.ceil(result.length / 4)
+      const outputTokens = Math.ceil(result.length / 4)
+
+      recordSpending({
+        model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
+        inputTokens,
+        outputTokens,
+      }).catch(console.error)
+    },
+    onError: (err) => {
+      setIsStreaming(false)
+      const error = err instanceof Error ? err : new Error('AI request failed')
+      toast.error(error.message)
+      options.onError?.(error)
+    },
+  })
+
+  const runAction = async (
+    action: AIAction,
+    text: string,
+    persona?: string
+  ) => {
+    if (!settings?.vaultKeyId) {
+      toast.error('Please add your OpenRouter API key in settings')
+      return
+    }
+
+    setIsStreaming(true)
+    setCompletion('')
+
+    try {
+      await complete(text, {
+        body: {
+          action,
+          text,
+          persona,
+          model: settings.defaultModel,
+          apiKey: settings.vaultKeyId, // In production, this would be decrypted server-side
+        },
+      })
+    } catch (err) {
+      setIsStreaming(false)
+      throw err
+    }
+  }
+
+  return {
+    completion,
+    isLoading: isLoading || isStreaming,
+    error,
+    runAction,
+    stop,
+    clear: () => setCompletion(''),
+  }
+}
