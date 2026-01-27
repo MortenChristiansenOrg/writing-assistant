@@ -90,7 +90,7 @@ export function Editor({
         editor={editor}
         className="flex gap-1 rounded-lg border bg-popover p-1 shadow-md"
       >
-        <AIBubbleMenu editor={editor} onAction={onAIAction} />
+        {onAIAction && <AIBubbleMenu editor={editor} onAction={onAIAction} />}
       </BubbleMenu>
       <EditorContent editor={editor} className="h-full" />
       <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">

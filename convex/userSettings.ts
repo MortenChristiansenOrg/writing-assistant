@@ -54,7 +54,7 @@ export const upsert = mutation({
         userId,
         defaultModel: args.defaultModel ?? 'anthropic/claude-3.5-sonnet',
         spendingThreshold: args.spendingThreshold ?? 1.0,
-        vaultKeyId: args.vaultKeyId,
+        ...(args.vaultKeyId !== undefined && { vaultKeyId: args.vaultKeyId }),
       })
     }
   },

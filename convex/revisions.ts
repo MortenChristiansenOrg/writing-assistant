@@ -58,7 +58,7 @@ export const create = mutation({
       userId,
       content: args.content,
       changeType: args.changeType,
-      description: args.description,
+      ...(args.description !== undefined && { description: args.description }),
       createdAt: Date.now(),
     })
   },

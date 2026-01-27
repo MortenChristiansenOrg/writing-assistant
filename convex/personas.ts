@@ -73,7 +73,7 @@ export const create = mutation({
     return await ctx.db.insert('personas', {
       userId,
       name: args.name,
-      description: args.description,
+      ...(args.description !== undefined && { description: args.description }),
       systemPrompt: args.systemPrompt,
       isDefault,
       createdAt: now,

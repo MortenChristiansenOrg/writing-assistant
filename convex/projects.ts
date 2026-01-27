@@ -42,7 +42,7 @@ export const create = mutation({
     return await ctx.db.insert('projects', {
       userId,
       name: args.name,
-      description: args.description,
+      ...(args.description !== undefined && { description: args.description }),
       createdAt: now,
       updatedAt: now,
     })
