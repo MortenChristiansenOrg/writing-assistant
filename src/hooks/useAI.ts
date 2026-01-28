@@ -74,7 +74,7 @@ export function useAI(options: UseAIOptions = {}) {
           action,
           text,
           persona,
-          model: settings.defaultModel,
+          model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
           apiKey: settings.vaultKeyId, // In production, this would be decrypted server-side
         },
       })

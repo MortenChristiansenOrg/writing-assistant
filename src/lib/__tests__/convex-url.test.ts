@@ -17,10 +17,9 @@ describe('convex-url', () => {
     expect(convexSiteUrl).toBe('https://my-prod-app.convex.site')
   })
 
-  it('returns empty string when URL is undefined', async () => {
+  it('throws when URL is empty (fail-fast validation)', async () => {
     vi.stubEnv('VITE_CONVEX_URL', '')
-    const { convexSiteUrl } = await import('../convex-url')
-    expect(convexSiteUrl).toBe('')
+    await expect(import('../convex-url')).rejects.toThrow('VITE_CONVEX_URL')
   })
 
   it('handles URLs without .convex.cloud', async () => {

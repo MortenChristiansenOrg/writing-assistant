@@ -1,12 +1,19 @@
 # Next Steps
 
-## Immediate (before first real use)
+### Remaining (lower priority)
 
-- [x] Run `npx convex dev` to generate proper types (replace stub \_generated files)
-- [x] Set up GitHub OAuth app and configure env vars
-- [ ] Test auth flow end-to-end
-- [ ] Add error boundary at app root
-- [ ] Handle Convex connection errors gracefully
+**Split Large Components** - 3 exceed 200-line threshold:
+
+1. **PersonaManager.tsx (240 lines)** - Split into PersonaForm + PersonaList
+2. **AppSidebar.tsx (232 lines)** - Extract ProjectSection + DocumentSection
+3. **SettingsPage.tsx (237 lines)** - Extract ApiKeySection, ModelSection, ThresholdSection
+
+**Optional Query State Improvements:**
+
+- AppSidebar.tsx - add loading state UI for documents query
+- HistoryPanel.tsx - distinguish loading vs empty
+
+---
 
 ## Short-term improvements
 
