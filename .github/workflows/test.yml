@@ -1,0 +1,41 @@
+name: Test
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun test:run
+      - run: bun test:coverage
+
+  convex-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun test:run convex/__tests__
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bunx playwright install --with-deps chromium
+      - name: Start Convex local backend
+        run: |
+          bunx convex dev --once
+          bunx convex dev &
+          sleep 5
+      - run: bun e2e
+    env:
+      CI: true
+      VITE_CONVEX_URL: "http://localhost:3210"
