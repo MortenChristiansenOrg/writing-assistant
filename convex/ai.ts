@@ -1,8 +1,11 @@
+import { httpAction } from './_generated/server'
 import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 
-export const config = {
-  runtime: 'edge',
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
 }
 
 const ACTION_PROMPTS: Record<string, string> = {
@@ -20,13 +23,13 @@ const ACTION_PROMPTS: Record<string, string> = {
     'Fix any grammar, spelling, or punctuation errors in the following text. Only make corrections, do not change the style or meaning.',
 }
 
-export default async function handler(req: Request) {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 })
+export const stream = httpAction(async (_ctx, request) => {
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
 
   try {
-    const body = await req.json()
+    const body = await request.json()
     const { action, text, persona, model, apiKey } = body as {
       action: string
       text: string
@@ -36,12 +39,12 @@ export default async function handler(req: Request) {
     }
 
     if (!action || !text || !apiKey) {
-      return new Response('Missing required fields', { status: 400 })
+      return new Response('Missing required fields', { status: 400, headers: corsHeaders })
     }
 
     const actionPrompt = ACTION_PROMPTS[action]
     if (!actionPrompt) {
-      return new Response('Invalid action', { status: 400 })
+      return new Response('Invalid action', { status: 400, headers: corsHeaders })
     }
 
     const openrouter = createOpenAI({
@@ -59,12 +62,15 @@ export default async function handler(req: Request) {
       model: openrouter(selectedModel),
       system: systemPrompt,
       prompt: text,
-      maxTokens: 2048,
     })
 
-    return result.toDataStreamResponse()
+    const response = result.toTextStreamResponse()
+    Object.entries(corsHeaders).forEach(([key, value]) => {
+      response.headers.set(key, value)
+    })
+    return response
   } catch (error) {
     console.error('AI stream error:', error)
-    return new Response('Internal server error', { status: 500 })
+    return new Response('Internal server error', { status: 500, headers: corsHeaders })
   }
-}
+})

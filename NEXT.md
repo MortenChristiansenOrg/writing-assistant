@@ -3,7 +3,7 @@
 ## Immediate (before first real use)
 
 - [x] Run `npx convex dev` to generate proper types (replace stub \_generated files)
-- [ ] Set up GitHub OAuth app and configure env vars
+- [x] Set up GitHub OAuth app and configure env vars
 - [ ] Test auth flow end-to-end
 - [ ] Add error boundary at app root
 - [ ] Handle Convex connection errors gracefully

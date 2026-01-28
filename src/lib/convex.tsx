@@ -8,7 +8,9 @@ if (!convexUrl) {
   console.warn('VITE_CONVEX_URL not set. Run `npx convex dev` to configure.')
 }
 
-const convex = new ConvexReactClient(convexUrl || 'https://placeholder.convex.cloud')
+const convex = new ConvexReactClient(convexUrl || 'https://placeholder.convex.cloud', {
+  verbose: true,
+})
 
 export function ConvexProvider({ children }: { children: ReactNode }) {
   return <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>

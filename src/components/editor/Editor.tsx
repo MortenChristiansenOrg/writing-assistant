@@ -3,7 +3,7 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TipTapAdapter } from '@/lib/editor'
 import type { EditorAdapter, DocumentContent } from '@/lib/editor'
 import { AIBubbleMenu, type AIAction } from './AIBubbleMenu'
@@ -26,6 +26,8 @@ export function Editor({
   editable = true,
 }: EditorProps) {
   const adapterRef = useRef<TipTapAdapter | null>(null)
+  const initializedRef = useRef(false)
+  const [wordCount, setWordCount] = useState(0)
 
   const editor = useEditor({
     extensions: [
@@ -46,6 +48,21 @@ export function Editor({
   useEffect(() => {
     if (!editor) return
 
+    const updateWordCount = () => {
+      setWordCount(editor.storage.characterCount?.words() ?? 0)
+    }
+
+    updateWordCount()
+    editor.on('update', updateWordCount)
+
+    return () => {
+      editor.off('update', updateWordCount)
+    }
+  }, [editor])
+
+  useEffect(() => {
+    if (!editor) return
+
     const adapter = new TipTapAdapter(editor)
     adapterRef.current = adapter
 
@@ -62,8 +79,9 @@ export function Editor({
     return () => adapter.destroy()
   }, [editor, onChange, onAdapterReady])
 
+  // Only sync content prop on initial load, not during editing
   useEffect(() => {
-    if (!editor || !content) return
+    if (!editor || !content || initializedRef.current) return
 
     const currentContent = editor.getJSON()
     const newContent = content.type === 'json' ? content.data : null
@@ -74,6 +92,7 @@ export function Editor({
     ) {
       editor.commands.setContent(newContent)
     }
+    initializedRef.current = true
   }, [editor, content])
 
   if (!editor) {
@@ -94,7 +113,7 @@ export function Editor({
       </BubbleMenu>
       <EditorContent editor={editor} className="h-full" />
       <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
-        {editor.storage.characterCount?.words() ?? 0} words
+        {wordCount} words
       </div>
     </div>
   )

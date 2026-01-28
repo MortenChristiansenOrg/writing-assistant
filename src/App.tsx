@@ -26,7 +26,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/app" replace />} />
+        <Route path="/" element={<AuthGate><Navigate to="/app" replace /></AuthGate>} />
         <Route
           path="/app/*"
           element={
