@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@/test/test-utils'
+import { render } from '@/test/test-utils'
 import { AIBubbleMenu } from '../AIBubbleMenu'
 import { AIBubbleMenuComponent } from './ai-bubble-menu.component'
+import type { AIAction } from '../AIBubbleMenu'
 import type { Editor } from '@tiptap/react'
 
 function createMockEditor(selectedText = 'test text'): Editor {
@@ -18,12 +19,12 @@ function createMockEditor(selectedText = 'test text'): Editor {
 describe('AIBubbleMenu', () => {
   let component: AIBubbleMenuComponent
   let mockEditor: Editor
-  let mockOnAction: ReturnType<typeof vi.fn>
+  let mockOnAction: (action: AIAction, selectedText: string) => void
 
   beforeEach(() => {
     component = new AIBubbleMenuComponent()
     mockEditor = createMockEditor()
-    mockOnAction = vi.fn()
+    mockOnAction = vi.fn() as any
   })
 
   it('renders trigger button', () => {

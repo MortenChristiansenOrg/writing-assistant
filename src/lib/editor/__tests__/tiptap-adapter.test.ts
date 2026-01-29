@@ -88,18 +88,18 @@ describe('TipTapAdapter', () => {
 
   describe('getSelection', () => {
     it('returns null when no selection (cursor only)', () => {
-      mockEditor.state.selection = { from: 5, to: 5 }
+      ;(mockEditor.state as any).selection = { from: 5, to: 5 }
       expect(adapter.getSelection()).toBeNull()
     })
 
     it('returns null when selection is whitespace only', () => {
-      mockEditor.state.selection = { from: 0, to: 5 }
+      ;(mockEditor.state as any).selection = { from: 0, to: 5 }
       ;(mockEditor.state.doc.textBetween as ReturnType<typeof vi.fn>).mockReturnValue('   ')
       expect(adapter.getSelection()).toBeNull()
     })
 
     it('returns selection with text', () => {
-      mockEditor.state.selection = { from: 0, to: 10 }
+      ;(mockEditor.state as any).selection = { from: 0, to: 10 }
       ;(mockEditor.state.doc.textBetween as ReturnType<typeof vi.fn>).mockReturnValue('hello world')
 
       const selection = adapter.getSelection()
@@ -113,7 +113,7 @@ describe('TipTapAdapter', () => {
 
   describe('replaceSelection', () => {
     it('chains focus, deleteRange, insertContent, and run', () => {
-      mockEditor.state.selection = { from: 5, to: 15 }
+      ;(mockEditor.state as any).selection = { from: 5, to: 15 }
       const chain = mockEditor.chain()
       ;(mockEditor.chain as ReturnType<typeof vi.fn>).mockReturnValue(chain)
 
@@ -147,7 +147,7 @@ describe('TipTapAdapter', () => {
     })
 
     it('returns 0 when storage is unavailable', () => {
-      mockEditor.storage = {}
+      ;(mockEditor as any).storage = {}
       expect(adapter.getCharacterCount()).toBe(0)
     })
   })
@@ -158,7 +158,7 @@ describe('TipTapAdapter', () => {
     })
 
     it('returns 0 when storage is unavailable', () => {
-      mockEditor.storage = {}
+      ;(mockEditor as any).storage = {}
       expect(adapter.getWordCount()).toBe(0)
     })
   })

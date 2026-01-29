@@ -1,4 +1,4 @@
-import { Component, ReactNode } from 'react'
+import { Component, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 
 interface Props {
@@ -22,12 +22,12 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error }
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Error caught by boundary:', error, errorInfo)
     this.props.onError?.(error, errorInfo)
   }
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (

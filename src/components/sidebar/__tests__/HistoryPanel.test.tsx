@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, waitFor, screen } from '@/test/test-utils'
+import { render, waitFor } from '@/test/test-utils'
 import { HistoryPanel } from '../HistoryPanel'
 import { HistoryPanelComponent } from './history-panel.component'
 import type { Id } from '../../../../convex/_generated/dataModel'

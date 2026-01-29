@@ -5,9 +5,9 @@ import { AIPreviewDialogComponent } from './ai-preview-dialog.component'
 
 describe('AIPreviewDialog', () => {
   let component: AIPreviewDialogComponent
-  let mockOnOpenChange: ReturnType<typeof vi.fn>
-  let mockOnAccept: ReturnType<typeof vi.fn>
-  let mockOnReject: ReturnType<typeof vi.fn>
+  let mockOnOpenChange: (open: boolean) => void
+  let mockOnAccept: () => void
+  let mockOnReject: () => void
 
   const defaultProps = {
     open: true,
@@ -18,9 +18,9 @@ describe('AIPreviewDialog', () => {
 
   beforeEach(() => {
     component = new AIPreviewDialogComponent()
-    mockOnOpenChange = vi.fn()
-    mockOnAccept = vi.fn()
-    mockOnReject = vi.fn()
+    mockOnOpenChange = vi.fn() as any
+    mockOnAccept = vi.fn() as any
+    mockOnReject = vi.fn() as any
   })
 
   it('renders when open', () => {

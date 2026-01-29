@@ -1,7 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@/test/test-utils'
 import { Editor } from '../Editor'
-import { EditorComponent } from './editor.component'
 import type { DocumentContent } from '@/lib/editor'
 
 // Mock TipTap with proper class syntax
@@ -37,7 +36,7 @@ vi.mock('@tiptap/react', async () => {
   return {
     ...actual,
     useEditor: vi.fn(() => mockEditorInstance),
-    EditorContent: ({ editor }: { editor: unknown }) => (
+    EditorContent: ({ editor: _editor }: { editor: unknown }) => (
       <div data-testid="editor-content" className="ProseMirror">
         Editor content
       </div>
@@ -61,11 +60,8 @@ vi.mock('@/lib/editor', () => {
 })
 
 describe('Editor', () => {
-  let component: EditorComponent
-
   beforeEach(() => {
     vi.clearAllMocks()
-    component = new EditorComponent()
     mockStorage.characterCount.words.mockReturnValue(0)
     mockGetJSON.mockReturnValue({ type: 'doc', content: [] })
     mockEditorInstance.state.doc.textBetween.mockReturnValue('')

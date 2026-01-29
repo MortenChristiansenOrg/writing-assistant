@@ -24,19 +24,18 @@ export class EditorComponent {
 
   getWordCountValue() {
     const match = this.wordCount?.textContent?.match(/(\d+) words/i)
-    return match ? parseInt(match[1], 10) : 0
+    return match?.[1] ? parseInt(match[1], 10) : 0
   }
 
-  hasPlaceholder(text: string) {
-    const placeholder = document.querySelector('.is-empty.is-editor-empty')
-    return placeholder !== null
+  hasPlaceholder(_text: string) {
+    return document.querySelector('.is-empty.is-editor-empty') !== null
   }
 
   async typeText(text: string) {
-    const editor = this.editorContent
-    if (editor) {
-      await userEvent.click(editor)
-      await userEvent.type(editor, text)
+    const el = this.editorContent
+    if (el) {
+      await userEvent.click(el)
+      await userEvent.type(el, text)
     }
   }
 
