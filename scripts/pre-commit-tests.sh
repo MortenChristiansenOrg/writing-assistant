@@ -9,10 +9,10 @@ bunx tsc -b || { echo "Type check failed"; exit 1; }
 echo "→ Building..."
 bunx vite build || { echo "Build failed"; exit 1; }
 
-echo "→ Deploying Convex functions..."
-if [ -z "${CONVEX_DEPLOYMENT:-}" ]; then
-  echo "Convex deploy skipped (no deployment configured)"
-else
+echo "→ Validating Convex functions..."
+bunx convex codegen --typecheck enable || { echo "Convex codegen failed"; exit 1; }
+if [ -n "${CONVEX_DEPLOYMENT:-}" ]; then
+  echo "→ Deploying Convex functions..."
   bunx convex deploy || { echo "Convex deploy failed"; exit 1; }
 fi
 
