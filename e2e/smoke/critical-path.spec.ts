@@ -103,7 +103,7 @@ test.describe('Critical Path Smoke Tests', () => {
     })
 
     await page.goto('/')
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('load')
 
     // Filter out expected errors (like auth-related in test env)
     const criticalErrors = errors.filter(

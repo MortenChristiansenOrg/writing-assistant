@@ -38,14 +38,12 @@ test.describe('Authentication', () => {
     expect(isLoginVisible).toBe(true)
   })
 
-  test('loading spinner shown while auth state loading', async ({ page }) => {
+  test('page loads without error during auth resolution', async ({ page }) => {
+    await page.goto('/')
+
+    // Auth resolves to either login page or app - either is valid
     const loginPage = new LoginPage(page)
-
-    // Navigate and immediately check for spinner before auth resolves
-    const responsePromise = page.goto('/')
-
-    // The loading spinner should appear briefly
-    // This is a timing-sensitive test, may need adjustment
-    await responsePromise
+    const isLoginVisible = await loginPage.isLoginVisible()
+    expect(isLoginVisible).toBe(true)
   })
 })

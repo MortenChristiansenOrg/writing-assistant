@@ -332,14 +332,14 @@ describe('documents', () => {
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
         await ctx.db.insert('revisions', {
           documentId: docId,
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 2000,
         })
       })
 

@@ -31,16 +31,16 @@ describe('personas', () => {
           name: 'Persona 1',
           systemPrompt: 'Be helpful',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
         await ctx.db.insert('personas', {
           userId: userId as never,
           name: 'Persona 2',
           systemPrompt: 'Be concise',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       })
 
@@ -58,8 +58,8 @@ describe('personas', () => {
           name: 'User 1 Persona',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       })
 
@@ -77,8 +77,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -95,8 +95,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -113,8 +113,8 @@ describe('personas', () => {
           description: 'A test persona',
           systemPrompt: 'Be awesome',
           isDefault: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -134,8 +134,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -163,8 +163,8 @@ describe('personas', () => {
           name: 'Non-default',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       })
 
@@ -181,16 +181,16 @@ describe('personas', () => {
           name: 'Non-default',
           systemPrompt: 'Prompt 1',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
         await ctx.db.insert('personas', {
           userId: userId as never,
           name: 'Default One',
           systemPrompt: 'Prompt 2',
           isDefault: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       })
 
@@ -259,8 +259,8 @@ describe('personas', () => {
           name: 'Old Default',
           systemPrompt: 'Prompt',
           isDefault: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -287,8 +287,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -309,8 +309,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -330,8 +330,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -355,8 +355,8 @@ describe('personas', () => {
           name: 'Original',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -377,8 +377,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -399,8 +399,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Old prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -422,8 +422,8 @@ describe('personas', () => {
           name: 'Persona 1',
           systemPrompt: 'Prompt',
           isDefault: true,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
       const persona2Id = await t.run(async (ctx) =>
@@ -432,8 +432,8 @@ describe('personas', () => {
           name: 'Persona 2',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -458,8 +458,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -477,8 +477,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -495,8 +495,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 
@@ -517,8 +517,8 @@ describe('personas', () => {
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
+          createdAt: 1000,
+          updatedAt: 1000,
         })
       )
 

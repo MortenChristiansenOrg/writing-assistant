@@ -4,12 +4,14 @@ import { useIsMobile } from '../use-mobile'
 
 describe('useIsMobile', () => {
   let originalInnerWidth: number
+  let originalMatchMedia: typeof window.matchMedia
   let addEventListenerSpy: ReturnType<typeof vi.fn>
   let removeEventListenerSpy: ReturnType<typeof vi.fn>
   let mediaQueryCallback: (() => void) | null = null
 
   beforeEach(() => {
     originalInnerWidth = window.innerWidth
+    originalMatchMedia = window.matchMedia
     addEventListenerSpy = vi.fn((event, callback) => {
       if (event === 'change') {
         mediaQueryCallback = callback as () => void
@@ -36,6 +38,10 @@ describe('useIsMobile', () => {
     Object.defineProperty(window, 'innerWidth', {
       writable: true,
       value: originalInnerWidth,
+    })
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      value: originalMatchMedia,
     })
     mediaQueryCallback = null
   })

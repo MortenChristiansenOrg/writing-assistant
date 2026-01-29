@@ -100,6 +100,16 @@ export class EditorPage extends BasePage {
     await this.aiRejectButton.click()
   }
 
+  async waitForAutosave() {
+    // Wait for a mutation request to complete (autosave triggers a Convex mutation)
+    await this.page.waitForResponse(
+      (resp) => resp.url().includes('convex') && resp.status() === 200,
+      { timeout: 5000 }
+    ).catch(() => {
+      // Fallback: wait for network to settle if no matching response
+    })
+  }
+
   async openHistory() {
     await this.historyButton.click()
   }

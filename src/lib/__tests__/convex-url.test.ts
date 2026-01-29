@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe('convex-url', () => {
   beforeEach(() => {
     vi.resetModules()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('converts .convex.cloud to .convex.site', async () => {

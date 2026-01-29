@@ -46,14 +46,14 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc', version: 1 },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
         await ctx.db.insert('revisions', {
           documentId: docId,
           userId: userId as never,
           content: { type: 'doc', version: 2 },
           changeType: 'ai_rewrite',
-          createdAt: Date.now() + 1000,
+          createdAt: 2000,
         })
       })
 
@@ -102,7 +102,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -121,7 +121,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -140,7 +140,7 @@ describe('revisions', () => {
           content: { type: 'doc', test: true },
           changeType: 'ai_insert',
           description: 'Test revision',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -161,7 +161,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -283,7 +283,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc', old: true },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -303,7 +303,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -322,7 +322,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: { type: 'doc' },
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -347,7 +347,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: oldContent,
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 
@@ -373,7 +373,7 @@ describe('revisions', () => {
           userId: userId as never,
           content: oldContent,
           changeType: 'manual',
-          createdAt: Date.now(),
+          createdAt: 1000,
         })
       )
 

@@ -77,8 +77,8 @@ test.describe('Document Creation', () => {
     const testText = 'Autosave test content'
     await editor.typeText(testText)
 
-    // Wait for autosave (500ms delay + network)
-    await page.waitForTimeout(1000)
+    // Wait for autosave to complete
+    await editor.waitForAutosave()
 
     // Reload page
     await page.reload()
@@ -101,8 +101,8 @@ test.describe('Document Creation', () => {
     const paragraph = 'This is a paragraph that should persist after page reload.'
     await editor.typeText(paragraph)
 
-    // Wait for autosave
-    await page.waitForTimeout(1500)
+    // Wait for autosave to complete
+    await editor.waitForAutosave()
 
     // Store current URL
     const url = page.url()
@@ -129,12 +129,12 @@ test.describe('Document Creation', () => {
     // Create first document
     await sidebar.createDocument(`Doc A ${Date.now()}`)
     await editor.typeText('Content for document A')
-    await page.waitForTimeout(1000)
+    await editor.waitForAutosave()
 
     // Create second document
     await sidebar.createDocument(`Doc B ${Date.now()}`)
     await editor.clearAndType('Content for document B')
-    await page.waitForTimeout(1000)
+    await editor.waitForAutosave()
 
     // Navigate back to first document
     const docA = page.getByRole('button', { name: /Doc A/ })

@@ -73,13 +73,13 @@ describe('HistoryPanel', () => {
         _id: 'rev1' as Id<'revisions'>,
         changeType: 'manual' as const,
         description: 'Added introduction',
-        createdAt: Date.now() - 60000,
+        createdAt: 2000,
       },
       {
         _id: 'rev2' as Id<'revisions'>,
         changeType: 'ai_rewrite' as const,
         description: 'Improved paragraph',
-        createdAt: Date.now() - 120000,
+        createdAt: 1000,
       },
     ]
     mockUseQuery.mockReturnValue(mockRevisions)
@@ -97,10 +97,10 @@ describe('HistoryPanel', () => {
 
   it('shows all change type labels', async () => {
     const mockRevisions = [
-      { _id: 'rev1' as Id<'revisions'>, changeType: 'manual' as const, createdAt: Date.now() },
-      { _id: 'rev2' as Id<'revisions'>, changeType: 'ai_rewrite' as const, createdAt: Date.now() },
-      { _id: 'rev3' as Id<'revisions'>, changeType: 'ai_insert' as const, createdAt: Date.now() },
-      { _id: 'rev4' as Id<'revisions'>, changeType: 'restore' as const, createdAt: Date.now() },
+      { _id: 'rev1' as Id<'revisions'>, changeType: 'manual' as const, createdAt: 1000 },
+      { _id: 'rev2' as Id<'revisions'>, changeType: 'ai_rewrite' as const, createdAt: 2000 },
+      { _id: 'rev3' as Id<'revisions'>, changeType: 'ai_insert' as const, createdAt: 3000 },
+      { _id: 'rev4' as Id<'revisions'>, changeType: 'restore' as const, createdAt: 4000 },
     ]
     mockUseQuery.mockReturnValue(mockRevisions)
 
@@ -119,7 +119,7 @@ describe('HistoryPanel', () => {
       {
         _id: 'rev1' as Id<'revisions'>,
         changeType: 'manual' as const,
-        createdAt: Date.now(),
+        createdAt: 1000,
       },
     ]
     mockUseQuery.mockReturnValue(mockRevisions)
@@ -138,7 +138,7 @@ describe('HistoryPanel', () => {
       {
         _id: 'rev1' as Id<'revisions'>,
         changeType: 'manual' as const,
-        createdAt: Date.now(),
+        createdAt: 1000,
       },
     ]
     mockUseQuery.mockReturnValue(mockRevisions)
@@ -160,7 +160,7 @@ describe('HistoryPanel', () => {
       {
         _id: 'rev1' as Id<'revisions'>,
         changeType: 'manual' as const,
-        createdAt: Date.now(),
+        createdAt: 1000,
       },
     ]
     mockUseQuery.mockReturnValue(mockRevisions)

@@ -64,14 +64,11 @@ describe('Editor', () => {
   let component: EditorComponent
 
   beforeEach(() => {
+    vi.clearAllMocks()
     component = new EditorComponent()
     mockStorage.characterCount.words.mockReturnValue(0)
-    mockOn.mockClear()
-    mockOff.mockClear()
-  })
-
-  afterEach(() => {
-    vi.clearAllMocks()
+    mockGetJSON.mockReturnValue({ type: 'doc', content: [] })
+    mockEditorInstance.state.doc.textBetween.mockReturnValue('')
   })
 
   it('renders editor content', () => {
