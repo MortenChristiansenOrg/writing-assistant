@@ -1,5 +1,8 @@
 import { useAuthActions } from '@convex-dev/auth/react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
 import {
   Card,
   CardContent,
@@ -7,6 +10,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+
+const TEST_USERS = [
+  { name: 'Alice', email: 'alice@test.local' },
+  { name: 'Bob', email: 'bob@test.local' },
+  { name: 'Carol', email: 'carol@test.local' },
+] as const
+
+const TEST_PASSWORD = 'testpass123'
 
 export function LoginPage() {
   const { signIn } = useAuthActions()
@@ -20,7 +31,7 @@ export function LoginPage() {
             AI-powered prose writing and editing
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <Button
             className="w-full"
             onClick={() => void signIn('github')}
@@ -28,9 +39,120 @@ export function LoginPage() {
             <GitHubIcon className="mr-2 h-4 w-4" />
             Sign in with GitHub
           </Button>
+
+          {import.meta.env.DEV && <DevLoginSection />}
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+function DevLoginSection() {
+  const { signIn } = useAuthActions()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handlePasswordAuth(
+    email: string,
+    password: string,
+    label: string,
+  ) {
+    setLoading(label)
+    setError(null)
+    try {
+      await signIn('password', { email, password, flow: 'signIn' })
+    } catch {
+      try {
+        await signIn('password', { email, password, flow: 'signUp' })
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Auth failed')
+      }
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  return (
+    <>
+      <div className="relative">
+        <Separator />
+        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+          Dev only
+        </span>
+      </div>
+
+      <div className="flex gap-2">
+        {TEST_USERS.map((user) => (
+          <Button
+            key={user.name}
+            variant="outline"
+            className="flex-1"
+            disabled={loading !== null}
+            onClick={() =>
+              handlePasswordAuth(user.email, TEST_PASSWORD, user.name)
+            }
+          >
+            {loading === user.name ? '...' : user.name}
+          </Button>
+        ))}
+      </div>
+
+      <form
+        className="space-y-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void handlePasswordAuth(email, password, 'custom')
+        }}
+      >
+        <Input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          data-testid="dev-email"
+        />
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          data-testid="dev-password"
+        />
+        <div className="flex gap-2">
+          <Button
+            type="submit"
+            variant="secondary"
+            className="flex-1"
+            disabled={loading !== null || !email || !password}
+          >
+            {loading === 'custom' ? '...' : 'Sign In'}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="flex-1"
+            disabled={loading !== null || !email || !password}
+            onClick={() => {
+              setLoading('signup')
+              setError(null)
+              signIn('password', { email, password, flow: 'signUp' })
+                .catch((e: unknown) =>
+                  setError(e instanceof Error ? e.message : 'Sign up failed'),
+                )
+                .finally(() => setLoading(null))
+            }}
+          >
+            {loading === 'signup' ? '...' : 'Sign Up'}
+          </Button>
+        </div>
+      </form>
+
+      {error && (
+        <p className="text-sm text-destructive text-center">{error}</p>
+      )}
+    </>
   )
 }
 

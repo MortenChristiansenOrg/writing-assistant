@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { api } from '../_generated/api'
+import { api } from '../../convex/_generated/api'
 import { createTestContext, createAuthenticatedContext } from './setup'
 
 describe('spending', () => {

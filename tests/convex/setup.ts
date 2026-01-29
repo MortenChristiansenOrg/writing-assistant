@@ -1,9 +1,9 @@
 import { convexTest } from 'convex-test'
-import schema from '../schema'
+import schema from '../../convex/schema'
 import { vi } from 'vitest'
 
 // Import modules explicitly for convex-test
-const modules = import.meta.glob('../**/*.ts')
+const modules = import.meta.glob('../../convex/**/*.ts')
 
 // Create test context factory
 export function createTestContext() {

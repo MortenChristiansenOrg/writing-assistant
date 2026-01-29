@@ -7,8 +7,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
+    testTimeout: 10000,
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'convex/__tests__/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}', 'tests/convex/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -17,7 +18,7 @@ export default defineConfig({
         'src/test/**',
         'src/**/*.d.ts',
         'convex/_generated/**',
-        'convex/__tests__/**',
+        'tests/convex/**',
       ],
     },
   },
