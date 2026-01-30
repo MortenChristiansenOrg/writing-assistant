@@ -71,7 +71,7 @@ export function SpendingDashboard() {
         </div>
       </div>
 
-      {today?.sessions && today.sessions.length > 0 && (
+      {today && today.sessions && today.sessions.length > 0 && (
         <div>
           <h4 className="mb-2 text-sm font-medium">Today by Model</h4>
           <div className="space-y-2">

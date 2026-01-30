@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -55,7 +55,10 @@ import {
 export function AppSidebar() {
   const { signOut } = useAuth()
   const navigate = useNavigate()
-  const { projectId, docId } = useParams()
+  const projectMatch = useMatch('/app/project/:projectId/*')
+  const docMatch = useMatch('/app/project/:projectId/doc/:docId')
+  const projectId = projectMatch?.params.projectId
+  const docId = docMatch?.params.docId
   const projects = useQuery(api.projects.list)
   const documents = useQuery(
     api.documents.list,

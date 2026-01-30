@@ -1,0 +1,71 @@
+name: PR Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run tsc -b
+      - run: bunx vite build
+
+  unit-tests:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run test:run
+
+  convex-tests:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run test:run tests/convex
+
+  e2e-tests:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    env:
+      VITE_CONVEX_URL: http://127.0.0.1:3210
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - name: Start local Convex backend
+        env:
+          CONVEX_AGENT_MODE: anonymous
+        run: |
+          bunx convex dev &
+          timeout 60 bash -c 'until curl -s http://127.0.0.1:3210 > /dev/null 2>&1; do sleep 1; done'
+      - name: Configure auth keys
+        run: |
+          node --eval '
+            const { execSync } = require("child_process");
+            (async () => {
+              const { generateKeyPair, exportPKCS8, exportJWK } = await import("jose");
+              const keys = await generateKeyPair("RS256");
+              const priv = (await exportPKCS8(keys.privateKey)).trimEnd().replace(/\n/g, " ");
+              const pub = await exportJWK(keys.publicKey);
+              const jwks = JSON.stringify({ keys: [{ use: "sig", ...pub }] });
+              execSync(`bunx convex env set JWT_PRIVATE_KEY -- ${JSON.stringify(priv)}`, { stdio: "inherit" });
+              execSync(`bunx convex env set JWKS -- ${JSON.stringify(jwks)}`, { stdio: "inherit" });
+            })();
+          '
+      - run: bun run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/

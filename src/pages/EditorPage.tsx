@@ -27,9 +27,12 @@ export function EditorPage() {
   const [aiDialogOpen, setAiDialogOpen] = useState(false)
   const [originalText, setOriginalText] = useState('')
 
-  const { completion, isLoading, runAction, clear } = useAI({
+  const { completion, isLoading, runAction, clear, hasApiKey } = useAI({
     onComplete: () => {
       // AI completed
+    },
+    onError: () => {
+      // keep dialog open so user can retry or dismiss
     },
   })
 
@@ -60,6 +63,10 @@ export function EditorPage() {
   }
 
   const handleAIAction = (action: AIAction, selectedText: string) => {
+    if (!hasApiKey) {
+      toast.error('Please add your OpenRouter API key in settings')
+      return
+    }
     setOriginalText(selectedText)
     setAiDialogOpen(true)
     clear()

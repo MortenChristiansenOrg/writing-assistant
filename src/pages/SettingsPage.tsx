@@ -24,14 +24,15 @@ import { toast } from 'sonner'
 import { Eye, EyeOff, Key, Save, Trash2 } from 'lucide-react'
 
 const MODELS = [
-  { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
-  { id: 'anthropic/claude-3-haiku', name: 'Claude 3 Haiku' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o' },
-  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini' },
-  { id: 'google/gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-  { id: 'meta-llama/llama-3.1-70b-instruct', name: 'Llama 3.1 70B' },
-  { id: 'meta-llama/llama-3.1-8b-instruct', name: 'Llama 3.1 8B' },
-  { id: 'mistralai/mistral-large-2411', name: 'Mistral Large' },
+  { id: 'anthropic/claude-opus-4.5', name: 'Claude Opus 4.5', input: 5, output: 25 },
+  { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', input: 3, output: 15 },
+  { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku', input: 0.8, output: 4 },
+  { id: 'openai/gpt-5.2', name: 'GPT-5.2', input: 1.75, output: 14 },
+  { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', input: 1.25, output: 10 },
+  { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', input: 0.3, output: 2.5 },
+  { id: 'moonshotai/kimi-k2-0905', name: 'Kimi K2 0905', input: 0.39, output: 1.9 },
+  { id: 'moonshotai/kimi-k2-thinking', name: 'Kimi K2 Thinking', input: 0.4, output: 1.75 },
+  { id: 'moonshotai/kimi-k2.5', name: 'Kimi K2.5', input: 0.5, output: 2.8 },
 ]
 
 export function SettingsPage() {
@@ -91,7 +92,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="container max-w-4xl py-8 space-y-8">
+    <div className="container max-w-4xl px-6 py-8 space-y-8">
       <h1 className="text-2xl font-bold">Settings</h1>
 
       <Card>
@@ -162,7 +163,7 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <Select
-            value={settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet'}
+            value={settings?.defaultModel ?? 'anthropic/claude-sonnet-4'}
             onValueChange={handleSaveModel}
           >
             <SelectTrigger className="w-64">
@@ -171,7 +172,10 @@ export function SettingsPage() {
             <SelectContent>
               {MODELS.map((model) => (
                 <SelectItem key={model.id} value={model.id}>
-                  {model.name}
+                  {model.name}{' '}
+                  <span className="text-muted-foreground">
+                    (${model.input}/${model.output})
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>

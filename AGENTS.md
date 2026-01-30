@@ -31,8 +31,11 @@ Note: Run this after every change to Convex functions
 When implementing work, create tasks and delegate to sub agents where it makes sense.
 Always make sure the code compiles and tests pass.
 Always specify types and never use `any`.
+Always fix all errors regardless if they were pre-existing or not.
 
 ## Testing
 
 All functionality must be verified with tests.
 After adding or changing functionality, make sure the changes are covered by passing tests.
+If you need an openrouter api key for testing, export TEST_OPENROUTER_API_KEY from .env.local.
+Tests should never be skipped.

@@ -73,7 +73,7 @@ export function AIBubbleMenu({ editor, onAction }: AIBubbleMenuProps) {
           <ChevronDown className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="start" disablePortal>
         {actions.map(({ action, label, icon }) => (
           <DropdownMenuItem key={action} onClick={() => handleAction(action)}>
             {icon}

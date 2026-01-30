@@ -3,6 +3,7 @@ import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { toast } from 'sonner'
 import { useState } from 'react'
+import { convexSiteUrl } from '@/lib/convex-url'
 
 export type AIAction =
   | 'rewrite'
@@ -30,9 +31,28 @@ export function useAI(options: UseAIOptions = {}) {
     stop,
     setCompletion,
   } = useCompletion({
-    api: '/api/ai/stream',
+    api: `${convexSiteUrl}/ai/stream`,
+    streamProtocol: 'text',
     onFinish: (_prompt, result) => {
       setIsStreaming(false)
+
+      // Detect backend stream errors
+      if (result.startsWith('__AI_ERROR__:')) {
+        const msg = result.slice('__AI_ERROR__:'.length)
+        setCompletion('')
+        toast.error(msg, { duration: Infinity })
+        options.onError?.(new Error(msg))
+        return
+      }
+
+      // Detect empty response
+      if (!result.trim()) {
+        setCompletion('')
+        toast.error('No response from AI', { duration: Infinity })
+        options.onError?.(new Error('No response from AI'))
+        return
+      }
+
       options.onComplete?.(result)
 
       // Estimate token usage (rough approximation)
@@ -47,8 +67,9 @@ export function useAI(options: UseAIOptions = {}) {
     },
     onError: (err) => {
       setIsStreaming(false)
+      setCompletion('')
       const error = err instanceof Error ? err : new Error('AI request failed')
-      toast.error(error.message)
+      toast.error(error.message, { duration: Infinity })
       options.onError?.(error)
     },
   })
@@ -59,7 +80,9 @@ export function useAI(options: UseAIOptions = {}) {
     persona?: string
   ) => {
     if (!settings?.vaultKeyId) {
-      toast.error('Please add your OpenRouter API key in settings')
+      const error = new Error('Please add your OpenRouter API key in settings')
+      toast.error(error.message)
+      options.onError?.(error)
       return
     }
 
@@ -72,7 +95,7 @@ export function useAI(options: UseAIOptions = {}) {
           action,
           text,
           persona,
-          model: settings.defaultModel,
+          model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
           apiKey: settings.vaultKeyId, // In production, this would be decrypted server-side
         },
       })
@@ -89,5 +112,6 @@ export function useAI(options: UseAIOptions = {}) {
     runAction,
     stop,
     clear: () => setCompletion(''),
+    hasApiKey: !!settings?.vaultKeyId,
   }
 }

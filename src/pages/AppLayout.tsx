@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { AppSidebar } from '@/components/sidebar/AppSidebar'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { EditorPage } from '@/pages/EditorPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
@@ -9,12 +10,14 @@ export function AppLayout() {
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
-        <Routes>
-          <Route path="/" element={<WelcomePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/project/:projectId" element={<ProjectPage />} />
-          <Route path="/project/:projectId/doc/:docId" element={<EditorPage />} />
-        </Routes>
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<WelcomePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/project/:projectId" element={<ProjectPage />} />
+            <Route path="/project/:projectId/doc/:docId" element={<EditorPage />} />
+          </Routes>
+        </ErrorBoundary>
       </SidebarInset>
     </SidebarProvider>
   )
