@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test'
+import { Page, Locator, expect } from '@playwright/test'
 
 export class BasePage {
   readonly page: Page
@@ -24,7 +24,7 @@ export class BasePage {
   }
 
   async waitForNavigation(url: string | RegExp) {
-    await this.page.waitForURL(url, { timeout: 10000 })
+    await expect(this.page).toHaveURL(url, { timeout: 10000 })
   }
 
   async isVisible(locator: Locator): Promise<boolean> {

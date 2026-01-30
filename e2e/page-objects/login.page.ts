@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test'
+import { Page, Locator, expect } from '@playwright/test'
 import { BasePage } from './base.page'
 
 export class LoginPage extends BasePage {
@@ -33,13 +33,13 @@ export class LoginPage extends BasePage {
 
   async loginAsTestUser(name: 'Alice' | 'Bob' | 'Carol') {
     await this.page.getByRole('button', { name }).click()
-    await this.page.waitForURL(/\/app/, { timeout: 15000 })
+    await expect(this.page).toHaveURL(/\/app/, { timeout: 15000 })
   }
 
   async loginWithPassword(email: string, password: string) {
     await this.emailInput.fill(email)
     await this.passwordInput.fill(password)
     await this.emailInput.press('Enter')
-    await this.page.waitForURL(/\/app/, { timeout: 15000 })
+    await expect(this.page).toHaveURL(/\/app/, { timeout: 15000 })
   }
 }
