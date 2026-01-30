@@ -32,7 +32,12 @@ export const stream = httpAction(async (_ctx, request) => {
   }
 
   try {
-    const body = await request.json()
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
+    }
     const { action, text, persona, model, apiKey } = body as {
       action: string
       text: string

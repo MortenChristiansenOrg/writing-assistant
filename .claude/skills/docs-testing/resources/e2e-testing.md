@@ -8,7 +8,7 @@ Playwright with FakeConvexClient via separate entry point. NO mock code in produ
 
 E2E tests use dependency injection to swap the real Convex client for a fake:
 
-```
+```text
 Production:  main.tsx → ConvexReactClient → real backend
 E2E:         src/test/e2e/main.tsx → FakeConvexClient → mock data
 ```
@@ -19,7 +19,7 @@ Build command: `vite build --config vite.config.e2e.ts`
 
 ## File Structure
 
-```
+```text
 src/test/e2e/
   main.tsx            # E2E entry point (replaces src/main.tsx)
   fakeConvexClient.ts # ConvexReactClientFake implementation

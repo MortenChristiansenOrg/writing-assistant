@@ -17,7 +17,9 @@ Identify failing CI test jobs on a PR, fetch their logs, analyze the failures, a
 
 Requires `gh` CLI with a token that has PR read access.
 
-**Setup:** Add fine-grained PAT to `.env.local`:
+### Setup
+
+Add fine-grained PAT to `.env.local`:
 1. Create token at <https://github.com/settings/personal-access-tokens/new>
 2. Select repository access
 3. Permissions: **Pull requests → Read**, **Actions → Read**

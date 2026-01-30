@@ -7,7 +7,7 @@ invocation: user
 # Goal
 
 Process CodeRabbit review comments on a PR: read comments, triage by priority, apply fixes, commit changes, and resolve addressed threads.
-This might not be the first pass over the PR, so identiy the relevant comments.
+This might not be the first pass over the PR, so identify the relevant comments.
 
 ## Invocation
 

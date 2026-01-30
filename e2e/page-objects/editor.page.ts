@@ -50,11 +50,11 @@ export class EditorPage extends BasePage {
   }
 
   async getEditorText(): Promise<string> {
-    return this.editorContent.textContent() ?? ''
+    return (await this.editorContent.textContent()) ?? ''
   }
 
   async getWordCount(): Promise<string> {
-    return this.wordCount.textContent() ?? ''
+    return (await this.wordCount.textContent()) ?? ''
   }
 
   async selectAllText() {
@@ -100,8 +100,9 @@ export class EditorPage extends BasePage {
     await this.page.waitForResponse(
       (resp) => resp.url().includes('convex') && resp.status() === 200,
       { timeout: 5000 }
-    ).catch(() => {
-      // Fallback: wait for network to settle if no matching response
+    ).catch(async () => {
+      // Fallback: brief wait for network to settle
+      await this.page.waitForLoadState('networkidle').catch(() => {})
     })
   }
 

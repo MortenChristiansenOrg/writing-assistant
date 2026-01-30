@@ -222,6 +222,7 @@ function BadForm({ data }) {
 
 // GOOD - validate on change or submit
 function GoodForm({ data }) {
+  const [formData, setData] = useState(data);
   const [isValid, setIsValid] = useState(true);
 
   const handleChange = (newData) => {

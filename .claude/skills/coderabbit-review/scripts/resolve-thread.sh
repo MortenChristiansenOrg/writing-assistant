@@ -8,7 +8,7 @@ set -euo pipefail
 # Load GH_TOKEN from .env.local if exists
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
-[[ -f "$REPO_ROOT/.env.local" ]] && export $(grep '^GH_TOKEN=' "$REPO_ROOT/.env.local")
+[[ -f "$REPO_ROOT/.env.local" ]] && export "$(grep '^GH_TOKEN=' "$REPO_ROOT/.env.local")"
 
 if [[ $# -lt 1 ]]; then
   echo "Usage: $0 <thread_id>" >&2
