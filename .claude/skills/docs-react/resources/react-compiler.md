@@ -40,7 +40,7 @@ function DocumentCard({ document }) {
 }
 
 function ParentComponent({ items }) {
-  const sortedItems = items.sort((a, b) => a.title.localeCompare(b.title));
+  const sortedItems = [...items].sort((a, b) => a.title.localeCompare(b.title));
   const handleClick = (id) => console.log("clicked", id);
 }
 ```

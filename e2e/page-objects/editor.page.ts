@@ -45,7 +45,7 @@ export class EditorPage extends BasePage {
 
   async clearAndType(text: string) {
     await this.editorContent.click()
-    await this.page.keyboard.press('Control+a')
+    await this.page.keyboard.press('ControlOrMeta+a')
     await this.page.keyboard.type(text, { delay: 50 })
   }
 
@@ -59,17 +59,12 @@ export class EditorPage extends BasePage {
 
   async selectAllText() {
     await this.editorContent.click()
-    await this.page.keyboard.press('Control+a')
+    await this.page.keyboard.press('ControlOrMeta+a')
   }
 
   async selectText(text: string) {
-    const content = await this.getEditorText()
-    const startIndex = content.indexOf(text)
-    if (startIndex === -1) throw new Error(`Text "${text}" not found in editor`)
-
-    await this.editorContent.click()
-    // Triple click to select paragraph, then use keyboard
-    await this.page.keyboard.press('Control+a')
+    const textLocator = this.editorContent.getByText(text, { exact: true })
+    await textLocator.click({ clickCount: 3 })
   }
 
   async waitForBubbleMenu() {

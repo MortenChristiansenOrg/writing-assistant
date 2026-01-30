@@ -26,7 +26,7 @@ src/test/e2e/
   mockData.ts         # Typed mock data
 e2e/
   *.spec.ts           # Test files
-  pages/              # Page objects
+  page-objects/       # Page objects
   fixtures.ts         # Auth fixtures
 ```
 

@@ -24,6 +24,9 @@ const ACTION_PROMPTS: Record<string, string> = {
 }
 
 export const stream = httpAction(async (_ctx, request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
   if (request.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders })
   }
@@ -52,7 +55,7 @@ export const stream = httpAction(async (_ctx, request) => {
       apiKey,
     })
 
-    const selectedModel = model ?? 'anthropic/claude-3.5-sonnet'
+    const selectedModel = model ?? 'anthropic/claude-sonnet-4'
 
     const systemPrompt = persona
       ? `${persona}\n\n${actionPrompt}`

@@ -165,7 +165,7 @@ function ArtworkForm({ artwork }: Props) {
 
 For complex components, use a folder:
 
-```
+```text
 ComplexForm/
   index.tsx           # Main component, re-exports
   ComplexForm.tsx     # Core component

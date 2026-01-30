@@ -32,7 +32,7 @@ const MODELS = [
   { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', input: 0.3, output: 2.5 },
   { id: 'moonshotai/kimi-k2-0905', name: 'Kimi K2 0905', input: 0.39, output: 1.9 },
   { id: 'moonshotai/kimi-k2-thinking', name: 'Kimi K2 Thinking', input: 0.4, output: 1.75 },
-  { id: 'moonshotai/kimi-k2.5', name: 'Kimi K2.5', input: 0.6, output: 3 },
+  { id: 'moonshotai/kimi-k2.5', name: 'Kimi K2.5', input: 0.5, output: 2.8 },
 ]
 
 export function SettingsPage() {
@@ -163,7 +163,7 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <Select
-            value={settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet'}
+            value={settings?.defaultModel ?? 'anthropic/claude-sonnet-4'}
             onValueChange={handleSaveModel}
           >
             <SelectTrigger className="w-64">

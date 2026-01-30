@@ -214,7 +214,16 @@ export function useDropzone({
 
     const files = Array.from(fileList).filter(file => {
       if (file.size > maxSize) return false;
-      // Additional validation...
+      if (
+        accept.length &&
+        !accept.some(type =>
+          type.endsWith('/*')
+            ? file.type.startsWith(type.slice(0, -1))
+            : file.type === type,
+        )
+      ) {
+        return false;
+      }
       return true;
     });
 

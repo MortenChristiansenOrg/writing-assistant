@@ -292,7 +292,7 @@ function Item({ item }) {
 }
 
 function List({ items }) {
-  const sortedItems = items.sort((a, b) => a.name.localeCompare(b.name));
+  const sortedItems = [...items].sort((a, b) => a.name.localeCompare(b.name));
   const handleClick = (id) => console.log(id);
 }
 ```

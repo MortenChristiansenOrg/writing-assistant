@@ -7,7 +7,7 @@ export class EditorComponent {
   }
 
   get loadingSpinner() {
-    return screen.queryByRole('status')
+    return document.querySelector('.animate-spin')
   }
 
   get wordCount() {

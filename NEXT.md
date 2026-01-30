@@ -1,6 +1,6 @@
 # Next Steps
 
-### Remaining (lower priority)
+## Remaining (lower priority)
 
 **Split Large Components** - 3 exceed 200-line threshold:
 

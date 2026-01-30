@@ -6,7 +6,7 @@
 
 ## Folder Structure
 
-```
+```text
 src/test/
   pages/           # Unit test page objects
     LoginPage.po.ts
@@ -15,11 +15,11 @@ src/test/
     DocumentCard.po.ts
     PersonaForm.po.ts
 e2e/
-  pages/           # E2E page objects
+  page-objects/    # E2E page objects
     EditorPage.ts
     SettingsPage.ts
 smoke/
-  pages/           # Smoke page objects (can share with e2e)
+  page-objects/    # Smoke page objects (can share with e2e)
 ```
 
 ---
