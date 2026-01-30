@@ -44,6 +44,7 @@ test.describe('Authentication', () => {
     // Auth resolves to either login page or app - either is valid
     const loginPage = new LoginPage(page)
     const isLoginVisible = await loginPage.isLoginVisible()
-    expect(isLoginVisible).toBe(true)
+    const isAppVisible = await page.locator('[data-testid="sidebar"], .ProseMirror').first().isVisible().catch(() => false)
+    expect(isLoginVisible || isAppVisible).toBe(true)
   })
 })

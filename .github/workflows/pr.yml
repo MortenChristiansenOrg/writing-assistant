@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun test:run
+      - run: bun run test:run
 
   convex-tests:
     runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun test:run tests/convex
+      - run: bun run test:run tests/convex
 
   e2e-tests:
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -52,9 +52,9 @@ jobs:
       - name: Configure auth keys
         run: |
           node --eval '
-            const { generateKeyPair, exportPKCS8, exportJWK } = require("jose");
             const { execSync } = require("child_process");
             (async () => {
+              const { generateKeyPair, exportPKCS8, exportJWK } = await import("jose");
               const keys = await generateKeyPair("RS256");
               const priv = (await exportPKCS8(keys.privateKey)).trimEnd().replace(/\n/g, " ");
               const pub = await exportJWK(keys.publicKey);

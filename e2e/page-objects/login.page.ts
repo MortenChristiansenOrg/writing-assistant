@@ -39,7 +39,7 @@ export class LoginPage extends BasePage {
   async loginWithPassword(email: string, password: string) {
     await this.emailInput.fill(email)
     await this.passwordInput.fill(password)
-    await this.emailInput.press('Enter')
+    await this.passwordInput.press('Enter')
     await expect(this.page).toHaveURL(/\/app/, { timeout: 15000 })
   }
 }

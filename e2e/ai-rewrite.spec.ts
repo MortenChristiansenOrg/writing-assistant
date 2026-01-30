@@ -52,7 +52,7 @@ async function setupUser(page: Page) {
     const input = page.getByPlaceholder('sk-or-...')
     await input.fill('sk-or-fake-test-key')
     await page.getByRole('button', { name: 'Save' }).click()
-    await page.waitForTimeout(500)
+    await expect(page.getByText('API key saved')).toBeVisible()
   }
 
   // Go back to main app
