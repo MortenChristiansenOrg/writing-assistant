@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { LoginPage, SidebarPage, EditorPage } from '../page-objects'
+import { LoginPage } from '../page-objects'
 
 test.describe('Critical Path Smoke Tests', () => {
   test('app loads successfully', async ({ page }) => {
@@ -35,63 +35,6 @@ test.describe('Critical Path Smoke Tests', () => {
     // Should redirect to login or show login inline
     const isLoginVisible = await loginPage.isLoginVisible()
     expect(isLoginVisible).toBe(true)
-  })
-
-  test.skip('authenticated user sees sidebar', async ({ page }) => {
-    // Note: Requires auth setup in playwright config
-    const sidebar = new SidebarPage(page)
-    await sidebar.goto()
-
-    await expect(sidebar.header).toBeVisible()
-    await expect(sidebar.projectsLabel).toBeVisible()
-    await expect(sidebar.newProjectButton).toBeVisible()
-  })
-
-  test.skip('editor container renders', async ({ page }) => {
-    // Note: Requires auth and existing document
-    const sidebar = new SidebarPage(page)
-    const editor = new EditorPage(page)
-
-    await sidebar.goto()
-    await sidebar.createProject(`Smoke Test ${Date.now()}`)
-    await sidebar.createDocument(`Test Doc ${Date.now()}`)
-
-    await expect(editor.editorContainer).toBeVisible()
-    await expect(editor.wordCount).toBeVisible()
-  })
-
-  test.skip('typing in editor works', async ({ page }) => {
-    const sidebar = new SidebarPage(page)
-    const editor = new EditorPage(page)
-
-    await sidebar.goto()
-    await sidebar.createProject(`Typing Test ${Date.now()}`)
-    await sidebar.createDocument(`Doc ${Date.now()}`)
-
-    await editor.typeText('Smoke test typing')
-
-    const content = await editor.getEditorText()
-    expect(content).toContain('Smoke test typing')
-  })
-
-  test.skip('AI menu accessible from editor', async ({ page }) => {
-    const sidebar = new SidebarPage(page)
-    const editor = new EditorPage(page)
-
-    await sidebar.goto()
-    await sidebar.createProject(`AI Test ${Date.now()}`)
-    await sidebar.createDocument(`Doc ${Date.now()}`)
-
-    await editor.typeText('Text for AI menu test')
-    await editor.selectAllText()
-    await editor.waitForBubbleMenu()
-
-    await expect(editor.aiButton).toBeVisible()
-
-    await editor.clickAIButton()
-
-    // AI menu options should appear
-    await expect(page.getByRole('menuitem', { name: 'Rewrite' })).toBeVisible()
   })
 
   test('no console errors on page load', async ({ page }) => {
