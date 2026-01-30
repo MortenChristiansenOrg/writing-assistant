@@ -154,8 +154,8 @@ test.describe('AI Rewrite', () => {
 
     await editor.waitForAIPreviewDialog()
 
-    // Original text should be shown
-    await expect(page.getByText(originalText)).toBeVisible()
+    // Original text should be shown in dialog
+    await expect(editor.aiPreviewDialog.getByText(originalText)).toBeVisible()
   })
 
   test('accept AI suggestion replaces text', async ({ page }) => {

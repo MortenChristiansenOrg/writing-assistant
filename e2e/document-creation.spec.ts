@@ -155,8 +155,7 @@ test.describe('Document Creation', () => {
     await docA.click()
     await editor.waitForLoaded()
 
-    // Verify first document content
-    const contentA = await editor.getEditorText()
-    expect(contentA).toContain('Content for document A')
+    // Verify first document content (wait for content to update after navigation)
+    await expect(editor.editorContent).toContainText('Content for document A')
   })
 })
