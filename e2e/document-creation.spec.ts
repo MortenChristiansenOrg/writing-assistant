@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test'
-import { SidebarPage, EditorPage } from './page-objects'
+import { LoginPage, SidebarPage, EditorPage } from './page-objects'
 
-// Note: These tests require authenticated session
-// In CI, use playwright auth state or mock auth
 test.describe('Document Creation', () => {
-  test.skip('create project and document', async ({ page }) => {
+  test('create project and document', async ({ page }) => {
+    const loginPage = new LoginPage(page)
+    await loginPage.goto()
+    await loginPage.loginAsTestUser('Alice')
+
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
-
-    await sidebar.goto()
 
     // Create new project
     const projectName = `Test Project ${Date.now()}`
@@ -28,11 +28,13 @@ test.describe('Document Creation', () => {
     await expect(editor.editorContainer).toBeVisible()
   })
 
-  test.skip('type in editor and verify content', async ({ page }) => {
+  test('type in editor and verify content', async ({ page }) => {
+    const loginPage = new LoginPage(page)
+    await loginPage.goto()
+    await loginPage.loginAsTestUser('Alice')
+
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
-
-    await sidebar.goto()
 
     // Create project and document
     await sidebar.createProject(`Project ${Date.now()}`)
@@ -47,11 +49,14 @@ test.describe('Document Creation', () => {
     expect(content).toContain(testText)
   })
 
-  test.skip('word count updates while typing', async ({ page }) => {
+  test('word count updates while typing', async ({ page }) => {
+    const loginPage = new LoginPage(page)
+    await loginPage.goto()
+    await loginPage.loginAsTestUser('Alice')
+
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
-    await sidebar.goto()
     await sidebar.createProject(`Project ${Date.now()}`)
     await sidebar.createDocument(`Doc ${Date.now()}`)
 
@@ -65,11 +70,14 @@ test.describe('Document Creation', () => {
     await expect(editor.wordCount).toContainText('5 words')
   })
 
-  test.skip('autosave triggers after typing', async ({ page }) => {
+  test('autosave triggers after typing', async ({ page }) => {
+    const loginPage = new LoginPage(page)
+    await loginPage.goto()
+    await loginPage.loginAsTestUser('Alice')
+
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
-    await sidebar.goto()
     await sidebar.createProject(`Project ${Date.now()}`)
     await sidebar.createDocument(`Doc ${Date.now()}`)
 
@@ -89,11 +97,14 @@ test.describe('Document Creation', () => {
     expect(content).toContain(testText)
   })
 
-  test.skip('content persists after reload', async ({ page }) => {
+  test('content persists after reload', async ({ page }) => {
+    const loginPage = new LoginPage(page)
+    await loginPage.goto()
+    await loginPage.loginAsTestUser('Alice')
+
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
-    await sidebar.goto()
     await sidebar.createProject(`Project ${Date.now()}`)
     await sidebar.createDocument(`Doc ${Date.now()}`)
 
@@ -119,11 +130,14 @@ test.describe('Document Creation', () => {
     expect(content).toContain(paragraph)
   })
 
-  test.skip('multiple documents maintain separate content', async ({ page }) => {
+  test('multiple documents maintain separate content', async ({ page }) => {
+    const loginPage = new LoginPage(page)
+    await loginPage.goto()
+    await loginPage.loginAsTestUser('Alice')
+
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
-    await sidebar.goto()
     await sidebar.createProject(`Project ${Date.now()}`)
 
     // Create first document
