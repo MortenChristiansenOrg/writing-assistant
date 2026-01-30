@@ -19,4 +19,7 @@ fi
 # Run unit, component, and Convex tests (excludes E2E/smoke)
 bun test:run
 
+#echo "→ E2E tests..."
+bunx playwright test || { echo "E2E tests failed"; exit 1; }
+
 echo "All tests passed!"
