@@ -32,7 +32,7 @@ export function EditorPage() {
       // AI completed
     },
     onError: () => {
-      setAiDialogOpen(false)
+      // keep dialog open so user can retry or dismiss
     },
   })
 

@@ -39,6 +39,7 @@ export function useAI(options: UseAIOptions = {}) {
       // Detect backend stream errors
       if (result.startsWith('__AI_ERROR__:')) {
         const msg = result.slice('__AI_ERROR__:'.length)
+        setCompletion('')
         toast.error(msg, { duration: Infinity })
         options.onError?.(new Error(msg))
         return
@@ -46,6 +47,7 @@ export function useAI(options: UseAIOptions = {}) {
 
       // Detect empty response
       if (!result.trim()) {
+        setCompletion('')
         toast.error('No response from AI', { duration: Infinity })
         options.onError?.(new Error('No response from AI'))
         return
@@ -65,6 +67,7 @@ export function useAI(options: UseAIOptions = {}) {
     },
     onError: (err) => {
       setIsStreaming(false)
+      setCompletion('')
       const error = err instanceof Error ? err : new Error('AI request failed')
       toast.error(error.message, { duration: Infinity })
       options.onError?.(error)

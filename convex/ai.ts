@@ -58,10 +58,16 @@ export const stream = httpAction(async (_ctx, request) => {
       ? `${persona}\n\n${actionPrompt}`
       : actionPrompt
 
+    // Estimate input tokens (~4 chars per token), scale output by action type
+    const inputTokenEstimate = Math.ceil(text.length / 4)
+    const outputMultiplier = action === 'longer' ? 3 : action === 'shorter' ? 0.75 : 1.5
+    const maxTokens = Math.max(256, Math.min(4096, Math.ceil(inputTokenEstimate * outputMultiplier)))
+
     const result = streamText({
       model: openrouter(selectedModel),
       system: systemPrompt,
       prompt: text,
+      maxOutputTokens: maxTokens,
     })
 
     const encoder = new TextEncoder()
