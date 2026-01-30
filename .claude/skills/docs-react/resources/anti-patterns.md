@@ -278,7 +278,7 @@ const MemoizedItem = React.memo(({ item }) => <div>{item.name}</div>);
 
 function List({ items }) {
   const sortedItems = useMemo(() =>
-    items.sort((a, b) => a.name.localeCompare(b.name)),
+    [...items].sort((a, b) => a.name.localeCompare(b.name)),
     [items]
   );
 
