@@ -64,11 +64,37 @@ export const stream = httpAction(async (_ctx, request) => {
       prompt: text,
     })
 
-    const response = result.toTextStreamResponse()
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      response.headers.set(key, value)
+    const encoder = new TextEncoder()
+    const stream = new ReadableStream({
+      async start(controller) {
+        let hasContent = false
+        try {
+          for await (const part of result.fullStream) {
+            if (part.type === 'text-delta') {
+              controller.enqueue(encoder.encode(part.text))
+              hasContent = true
+            } else if (part.type === 'error') {
+              const err = part.error
+              const msg = err instanceof Error ? err.message : String(err)
+              controller.enqueue(encoder.encode(`__AI_ERROR__:${msg}`))
+              controller.close()
+              return
+            }
+          }
+          if (!hasContent) {
+            controller.enqueue(encoder.encode(`__AI_ERROR__:No response from AI`))
+          }
+          controller.close()
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'AI request failed'
+          controller.enqueue(encoder.encode(`__AI_ERROR__:${msg}`))
+          controller.close()
+        }
+      },
     })
-    return response
+    return new Response(stream, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', ...corsHeaders },
+    })
   } catch (error) {
     console.error('AI stream error:', error)
     return new Response('Internal server error', { status: 500, headers: corsHeaders })

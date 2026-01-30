@@ -220,7 +220,7 @@ describe('useAI', () => {
       })
 
       expect(onError).toHaveBeenCalledWith(expect.any(Error))
-      expect(toast.error).toHaveBeenCalledWith('Test error')
+      expect(toast.error).toHaveBeenCalledWith('Test error', { duration: Infinity })
     })
 
     it('handles non-Error objects in onError', () => {
@@ -244,7 +244,7 @@ describe('useAI', () => {
         onErrorCallback?.('string error')
       })
 
-      expect(toast.error).toHaveBeenCalledWith('AI request failed')
+      expect(toast.error).toHaveBeenCalledWith('AI request failed', { duration: Infinity })
     })
   })
 

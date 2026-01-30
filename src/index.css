@@ -131,6 +131,40 @@ body {
   }
 }
 
+/* Toast close button: inline dismiss instead of tiny floating circle */
+[data-sonner-toast][data-styled="true"] [data-close-button] {
+  position: static;
+  transform: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  border: 1px solid oklch(0.5 0 0 / 15%);
+  color: inherit;
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: center;
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button]:hover {
+  opacity: 1;
+  background: oklch(0.5 0 0 / 8%);
+}
+
+[data-sonner-toast][data-styled="true"] [data-close-button]:focus-visible {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+/* Ensure toast content lays out horizontally with close button at end */
+[data-sonner-toast][data-styled="true"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* TipTap editor styles */
 .tiptap p.is-editor-empty:first-child::before {
   color: var(--muted-foreground);

@@ -37,3 +37,4 @@ Always fix all errors regardless if they were pre-existing or not.
 
 All functionality must be verified with tests.
 After adding or changing functionality, make sure the changes are covered by passing tests.
+If you need an openrouter api key for testing, export TEST_OPENROUTER_API_KEY from .env.local.

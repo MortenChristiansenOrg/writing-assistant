@@ -35,6 +35,22 @@ export function useAI(options: UseAIOptions = {}) {
     streamProtocol: 'text',
     onFinish: (_prompt, result) => {
       setIsStreaming(false)
+
+      // Detect backend stream errors
+      if (result.startsWith('__AI_ERROR__:')) {
+        const msg = result.slice('__AI_ERROR__:'.length)
+        toast.error(msg, { duration: Infinity })
+        options.onError?.(new Error(msg))
+        return
+      }
+
+      // Detect empty response
+      if (!result.trim()) {
+        toast.error('No response from AI', { duration: Infinity })
+        options.onError?.(new Error('No response from AI'))
+        return
+      }
+
       options.onComplete?.(result)
 
       // Estimate token usage (rough approximation)
@@ -50,7 +66,7 @@ export function useAI(options: UseAIOptions = {}) {
     onError: (err) => {
       setIsStreaming(false)
       const error = err instanceof Error ? err : new Error('AI request failed')
-      toast.error(error.message)
+      toast.error(error.message, { duration: Infinity })
       options.onError?.(error)
     },
   })
@@ -61,7 +77,9 @@ export function useAI(options: UseAIOptions = {}) {
     persona?: string
   ) => {
     if (!settings?.vaultKeyId) {
-      toast.error('Please add your OpenRouter API key in settings')
+      const error = new Error('Please add your OpenRouter API key in settings')
+      toast.error(error.message)
+      options.onError?.(error)
       return
     }
 
@@ -91,5 +109,6 @@ export function useAI(options: UseAIOptions = {}) {
     runAction,
     stop,
     clear: () => setCompletion(''),
+    hasApiKey: !!settings?.vaultKeyId,
   }
 }
