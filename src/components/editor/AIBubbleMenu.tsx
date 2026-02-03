@@ -60,7 +60,7 @@ const actions: { action: AIAction; label: string; icon: React.ReactNode }[] = [
 export function AIBubbleMenu({ editor, onAction }: AIBubbleMenuProps) {
   const handleAction = (action: AIAction) => {
     const { from, to } = editor.state.selection
-    const selectedText = editor.state.doc.textBetween(from, to, ' ')
+    const selectedText = editor.state.doc.textBetween(from, to, '\n\n')
     onAction?.(action, selectedText)
   }
 

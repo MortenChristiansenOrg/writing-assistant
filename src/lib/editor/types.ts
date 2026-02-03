@@ -25,5 +25,17 @@ export interface EditorAdapter {
   onSelectionChange(callback: (selection: Selection | null) => void): () => void
   getCharacterCount(): number
   getWordCount(): number
+  getPlainText(): string
+  getMarkdown(): string
+  getSelectedMarkdown(): string | null
+  getTextInRange(from: number, to: number): string
+  getTextOffsetRange(): {
+    from: number
+    to: number
+    text: string
+    fullText: string
+  } | null
+  replaceRange(from: number, to: number, content: string): void
+  setMarkdownContent(markdown: string): void
   destroy(): void
 }

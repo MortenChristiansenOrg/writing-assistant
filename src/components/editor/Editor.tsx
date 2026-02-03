@@ -3,6 +3,7 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
+import { Markdown } from 'tiptap-markdown'
 import { useEffect, useRef, useState } from 'react'
 import { TipTapAdapter } from '@/lib/editor'
 import type { EditorAdapter, DocumentContent } from '@/lib/editor'
@@ -15,6 +16,8 @@ interface EditorProps {
   onAIAction?: (action: AIAction, selectedText: string) => void
   placeholder?: string
   editable?: boolean
+  extraExtensions?: import('@tiptap/core').Extension[]
+  className?: string
 }
 
 export function Editor({
@@ -24,6 +27,8 @@ export function Editor({
   onAIAction,
   placeholder = 'Start writing...',
   editable = true,
+  extraExtensions = [],
+  className,
 }: EditorProps) {
   const adapterRef = useRef<TipTapAdapter | null>(null)
   const initializedRef = useRef(false)
@@ -34,6 +39,8 @@ export function Editor({
       StarterKit,
       Placeholder.configure({ placeholder }),
       CharacterCount,
+      Markdown.configure({ html: true, transformPastedText: true }),
+      ...extraExtensions,
     ],
     content: content?.type === 'json' ? content.data : content?.data ?? '',
     editable,
@@ -104,7 +111,7 @@ export function Editor({
   }
 
   return (
-    <div className="relative h-full">
+    <div className={`relative h-full${className ? ` ${className}` : ''}`}>
       <BubbleMenu
         editor={editor}
         className="flex gap-1 rounded-lg border bg-popover p-1 shadow-md"

@@ -3,11 +3,12 @@ import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { Editor } from '@/components/editor/Editor'
+import { AISplitView } from '@/components/editor/AISplitView'
 import type { DocumentContent, EditorAdapter } from '@/lib/editor'
 import { useRef, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { useAI, type AIAction } from '@/hooks/useAI'
-import { AIPreviewDialog } from '@/components/editor/AIPreviewDialog'
+import type { AIAction } from '@/hooks/useAI'
+import { useAISplitSession } from '@/hooks/useAISplitSession'
 import { HistoryPanel } from '@/components/sidebar/HistoryPanel'
 
 const AUTOSAVE_DELAY = 500
@@ -24,17 +25,9 @@ export function EditorPage() {
   const pendingContentRef = useRef<DocumentContent | null>(null)
   const editorAdapterRef = useRef<EditorAdapter | null>(null)
 
-  const [aiDialogOpen, setAiDialogOpen] = useState(false)
-  const [originalText, setOriginalText] = useState('')
+  const [lastAction, setLastAction] = useState<AIAction>('rewrite')
 
-  const { completion, isLoading, runAction, clear, hasApiKey } = useAI({
-    onComplete: () => {
-      // AI completed
-    },
-    onError: () => {
-      // keep dialog open so user can retry or dismiss
-    },
-  })
+  const session = useAISplitSession()
 
   const handleContentChange = (content: DocumentContent) => {
     if (!docId) return
@@ -62,21 +55,33 @@ export function EditorPage() {
     }, AUTOSAVE_DELAY)
   }
 
-  const handleAIAction = (action: AIAction, selectedText: string) => {
-    if (!hasApiKey) {
+  const handleAIAction = (action: AIAction, _selectedText: string) => {
+    if (!session.hasApiKey) {
       toast.error('Please add your OpenRouter API key in settings')
       return
     }
-    setOriginalText(selectedText)
-    setAiDialogOpen(true)
-    clear()
-    void runAction(action, selectedText)
+    const adapter = editorAdapterRef.current
+    if (!adapter) return
+
+    const range = adapter.getTextOffsetRange()
+    if (!range) return
+
+    setLastAction(action)
+    session.enterSplitMode(
+      range.text,
+      { from: range.from, to: range.to },
+      action,
+      range.fullText
+    )
   }
 
-  const handleAcceptAI = () => {
-    if (!completion || !editorAdapterRef.current || !docId) return
-
+  const handleFinish = () => {
     const adapter = editorAdapterRef.current
+    const range = session.selectionRange
+    if (!adapter || !range || !docId) return
+
+    const mergedText = session.finish()
+    if (!mergedText) return
 
     // Create revision before replacing
     const currentContent = adapter.getContent()
@@ -84,17 +89,15 @@ export function EditorPage() {
       documentId: docId as Id<'documents'>,
       content: currentContent.data,
       changeType: 'ai_rewrite',
-      description: `AI rewrite of "${originalText.slice(0, 50)}..."`,
+      description: `AI rewrite`,
     })
 
-    // Replace selected text with AI result
-    adapter.replaceSelection(completion)
-    toast.success('AI suggestion applied')
-  }
-
-  const handleRejectAI = () => {
-    clear()
-    toast.info('AI suggestion rejected')
+    // Build full markdown with merged selection replacing original range
+    const fullMd = session.fullDocumentText
+    const before = fullMd.slice(0, range.from)
+    const after = fullMd.slice(range.to)
+    adapter.setMarkdownContent(before + mergedText + after)
+    toast.success('AI edits applied')
   }
 
   useEffect(() => {
@@ -134,6 +137,37 @@ export function EditorPage() {
     data: document.content as Record<string, unknown>,
   }
 
+  if (session.active) {
+    return (
+      <div className="flex h-full flex-col">
+        <header className="flex items-center justify-between border-b px-4 py-2">
+          <h1 className="text-lg font-medium">{document.title}</h1>
+          <HistoryPanel documentId={docId as Id<'documents'>} />
+        </header>
+        <div className="flex-1 overflow-hidden">
+          <AISplitView
+            originalDocumentText={session.fullDocumentText}
+            baselineText={session.baselineText}
+            selectionRange={session.selectionRange!}
+            chunks={session.chunks}
+            isLoading={session.isLoading}
+            acceptedCount={session.acceptedCount}
+            pendingCount={session.pendingCount}
+            canUndo={session.savePoints.length > 0}
+            lastAction={lastAction}
+            onAcceptChunk={session.acceptChunk}
+            onRevertChunk={session.revertChunk}
+            onAcceptAll={session.acceptAll}
+            onRegenerate={session.regenerate}
+            onUndo={session.undoRegeneration}
+            onFinish={handleFinish}
+            onCancel={session.cancelAll}
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-4 py-2">
@@ -150,15 +184,6 @@ export function EditorPage() {
           onAIAction={handleAIAction}
         />
       </div>
-      <AIPreviewDialog
-        open={aiDialogOpen}
-        onOpenChange={setAiDialogOpen}
-        originalText={originalText}
-        previewText={completion}
-        isLoading={isLoading}
-        onAccept={handleAcceptAI}
-        onReject={handleRejectAI}
-      />
     </div>
   )
 }
