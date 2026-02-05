@@ -137,13 +137,14 @@ export function EditorPage() {
     data: document.content as Record<string, unknown>,
   }
 
-  if (session.active) {
-    return (
-      <div className="flex h-full flex-col">
-        <header className="flex items-center justify-between border-b px-4 py-2">
-          <h1 className="text-lg font-medium">{document.title}</h1>
-          <HistoryPanel documentId={docId as Id<'documents'>} />
-        </header>
+  return (
+    <div className="flex h-full flex-col">
+      <header className="flex items-center justify-between border-b px-4 py-2">
+        <h1 className="text-lg font-medium">{document.title}</h1>
+        <HistoryPanel documentId={docId as Id<'documents'>} />
+      </header>
+
+      {session.active && (
         <div className="flex-1 overflow-hidden">
           <AISplitView
             originalDocumentText={session.fullDocumentText}
@@ -164,17 +165,12 @@ export function EditorPage() {
             onCancel={session.cancelAll}
           />
         </div>
-      </div>
-    )
-  }
+      )}
 
-  return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-2">
-        <h1 className="text-lg font-medium">{document.title}</h1>
-        <HistoryPanel documentId={docId as Id<'documents'>} />
-      </header>
-      <div className="flex-1 overflow-auto">
+      <div
+        className="flex-1 overflow-auto"
+        style={{ display: session.active ? 'none' : undefined }}
+      >
         <Editor
           content={initialContent}
           onChange={handleContentChange}

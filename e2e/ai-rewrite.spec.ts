@@ -152,11 +152,18 @@ test.describe('AI Rewrite', () => {
     await editor.waitForAIPreviewDialog()
     await editor.waitForAICompletion()
 
+    // Accept all pending chunks before applying
+    await page.getByRole('button', { name: /Accept all/i }).click()
+
     // Click Apply to accept edits
     await editor.acceptAISuggestion()
 
     // Split view should close
     await expect(editor.aiPreviewDialog).not.toBeVisible()
+
+    // Verify the editor content changed to the AI suggestion
+    const editorText = await editor.getEditorText()
+    expect(editorText).toContain(MOCK_RESPONSES.rewrite)
   })
 
   test('cancel AI suggestion exits split view', async ({ page }) => {
