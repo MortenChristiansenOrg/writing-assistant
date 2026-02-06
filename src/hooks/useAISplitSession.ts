@@ -145,14 +145,14 @@ export function useAISplitSession(): AISplitSession {
   const finish = useCallback((): string | null => {
     if (!selectionRange) return null
     const mergedSelection = applyAcceptedChunks(chunks)
-    // Build full document with the merged selection replacing the original range
+    // Return merged selection for caller to splice into document
     setActive(false)
     setChunks([])
     setSavePoints([])
     setSelectionRange(null)
     clear()
     return mergedSelection
-  }, [chunks, selectionRange, fullDocumentText, clear])
+  }, [chunks, selectionRange, clear])
 
   const cancelAll = useCallback(() => {
     setActive(false)

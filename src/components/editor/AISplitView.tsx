@@ -69,9 +69,9 @@ export function AISplitView({
         if (chunk.type === 'equal') {
           selectionMd += escapeHtml(chunk.text)
         } else if (chunk.type === 'add' && chunk.status === 'accepted') {
-          selectionMd += `<span class="diff-accepted-left" data-chunk-id="${chunk.id}">${escapeHtml(chunk.text)}</span>`
+          selectionMd += `<span class="diff-accepted-left" data-chunk-id="${escapeHtml(chunk.id)}">${escapeHtml(chunk.text)}</span>`
         } else if (chunk.type === 'remove' && chunk.status === 'accepted') {
-          selectionMd += `<span class="diff-remove-left" data-chunk-id="${chunk.id}">${escapeHtml(chunk.text)}</span>`
+          selectionMd += `<span class="diff-remove-left" data-chunk-id="${escapeHtml(chunk.id)}">${escapeHtml(chunk.text)}</span>`
         } else if (chunk.type === 'remove' && chunk.status !== 'accepted') {
           selectionMd += escapeHtml(chunk.text)
         }
@@ -105,7 +105,7 @@ export function AISplitView({
             `<span class="diff-accepted">${escapeHtml(chunk.text)}</span>`
         } else if (chunk.status === 'pending') {
           selectionHtml +=
-            `<span class="diff-add diff-chunk-interactive" data-chunk-id="${chunk.id}" data-action="accept" title="Click to accept">${escapeHtml(chunk.text)}</span>`
+            `<span class="diff-add diff-chunk-interactive" data-chunk-id="${escapeHtml(chunk.id)}" data-action="accept" title="Click to accept">${escapeHtml(chunk.text)}</span>`
         }
       } else if (chunk.type === 'remove') {
         if (chunk.status === 'accepted') {
@@ -113,7 +113,7 @@ export function AISplitView({
             `<span class="diff-remove-accepted">${escapeHtml(chunk.text)}</span>`
         } else if (chunk.status === 'pending') {
           selectionHtml +=
-            `<span class="diff-remove diff-chunk-interactive" data-chunk-id="${chunk.id}" data-action="accept" title="Click to accept removal">${escapeHtml(chunk.text)}</span>`
+            `<span class="diff-remove diff-chunk-interactive" data-chunk-id="${escapeHtml(chunk.id)}" data-action="accept" title="Click to accept removal">${escapeHtml(chunk.text)}</span>`
         } else if (chunk.status === 'rejected') {
           selectionHtml += escapeHtml(chunk.text)
         }
@@ -265,4 +265,5 @@ function escapeHtml(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }

@@ -93,7 +93,11 @@ export class TipTapAdapter implements EditorAdapter {
   }
 
   getMarkdown(): string {
-    return (this.editor.storage as Record<string, any>).markdown?.getMarkdown?.() ?? this.getPlainText()
+    const storage = this.editor.storage as unknown as Record<string, unknown>
+    const markdown = storage.markdown as
+      | { getMarkdown?: () => string }
+      | undefined
+    return markdown?.getMarkdown?.() ?? this.getPlainText()
   }
 
   getSelectedMarkdown(): string | null {

@@ -36,18 +36,18 @@ export const DiffDecorationExtension = Extension.create<DiffDecorationOptions>({
             const docSize = state.doc.content.size
 
             // Deemphasis: before selection
-            if (selectionFrom > 1) {
+            if (selectionFrom > 1 && selectionFrom <= docSize - 1) {
               decorations.push(
-                Decoration.inline(1, selectionFrom, {
+                Decoration.inline(1, Math.min(selectionFrom, docSize - 1), {
                   class: 'diff-deemphasized',
                 })
               )
             }
 
             // Deemphasis: after selection
-            if (selectionTo < docSize - 1) {
+            if (selectionTo > 0 && selectionTo < docSize - 1) {
               decorations.push(
-                Decoration.inline(selectionTo, docSize - 1, {
+                Decoration.inline(Math.max(1, selectionTo), docSize - 1, {
                   class: 'diff-deemphasized',
                 })
               )
