@@ -9,12 +9,12 @@ export class EditorPage extends BasePage {
   readonly historyButton: Locator
   readonly aiButton: Locator
   readonly bubbleMenu: Locator
-  readonly aiPreviewDialog: Locator
-  readonly aiPreviewOriginal: Locator
-  readonly aiPreviewSuggested: Locator
+  readonly aiSplitToolbar: Locator
   readonly aiAcceptButton: Locator
-  readonly aiRejectButton: Locator
+  readonly aiCancelButton: Locator
   readonly loadingIndicator: Locator
+  // Keep old names as aliases for backward compat in specs
+  readonly aiPreviewDialog: Locator
 
   constructor(page: Page) {
     super(page)
@@ -25,12 +25,12 @@ export class EditorPage extends BasePage {
     this.historyButton = page.getByRole('button', { name: /History/i })
     this.aiButton = page.getByRole('button', { name: /AI/i })
     this.bubbleMenu = page.locator('.rounded-lg.border.bg-popover')
-    this.aiPreviewDialog = page.getByRole('dialog')
-    this.aiPreviewOriginal = page.locator('text=Original').locator('..')
-    this.aiPreviewSuggested = page.locator('text=Suggested').locator('..')
-    this.aiAcceptButton = page.getByRole('button', { name: 'Accept' })
-    this.aiRejectButton = page.getByRole('button', { name: 'Reject' })
-    this.loadingIndicator = page.locator('text=Generating...')
+    this.aiSplitToolbar = page.getByText(/Reviewing AI suggestions|Generating suggestion/)
+    this.aiAcceptButton = page.getByRole('button', { name: /Apply/i })
+    this.aiCancelButton = page.getByRole('button', { name: /Cancel/i })
+    this.loadingIndicator = page.getByText('Generating suggestion...')
+    // Split view toolbar acts as the "dialog" presence indicator
+    this.aiPreviewDialog = this.aiSplitToolbar
   }
 
   async gotoDocument(projectId: string, docId: string) {
@@ -50,7 +50,7 @@ export class EditorPage extends BasePage {
   }
 
   async getEditorText(): Promise<string> {
-    return (await this.editorContent.textContent()) ?? ''
+    return (await this.editorContent.first().textContent()) ?? ''
   }
 
   async getWordCount(): Promise<string> {
@@ -80,7 +80,8 @@ export class EditorPage extends BasePage {
   }
 
   async waitForAIPreviewDialog() {
-    await this.aiPreviewDialog.waitFor({ state: 'visible', timeout: 10000 })
+    // Wait for split view toolbar to appear
+    await this.aiSplitToolbar.waitFor({ state: 'visible', timeout: 10000 })
   }
 
   async waitForAICompletion() {
@@ -92,16 +93,14 @@ export class EditorPage extends BasePage {
   }
 
   async rejectAISuggestion() {
-    await this.aiRejectButton.click()
+    await this.aiCancelButton.click()
   }
 
   async waitForAutosave() {
-    // Wait for a mutation request to complete (autosave triggers a Convex mutation)
     await this.page.waitForResponse(
       (resp) => resp.url().includes('convex') && resp.status() === 200,
       { timeout: 5000 }
     ).catch(async () => {
-      // Fallback: brief wait for network to settle
       await this.page.waitForLoadState('networkidle').catch(() => {})
     })
   }

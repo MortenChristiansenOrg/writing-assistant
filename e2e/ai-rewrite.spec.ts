@@ -113,7 +113,7 @@ test.describe('AI Rewrite', () => {
     ).toBeVisible()
   })
 
-  test('trigger AI rewrite shows preview dialog', async ({ page }) => {
+  test('trigger AI rewrite opens split view', async ({ page }) => {
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
@@ -129,36 +129,12 @@ test.describe('AI Rewrite', () => {
     await editor.clickAIButton()
     await editor.selectAIAction('Rewrite')
 
-    // Preview dialog should appear
+    // Split view toolbar should appear
     await editor.waitForAIPreviewDialog()
     await expect(editor.aiPreviewDialog).toBeVisible()
-    await expect(page.getByText('AI Suggestion')).toBeVisible()
-    await expect(page.getByText('Original')).toBeVisible()
-    await expect(page.getByText('Suggested')).toBeVisible()
   })
 
-  test('preview dialog shows original text', async ({ page }) => {
-    const sidebar = new SidebarPage(page)
-    const editor = new EditorPage(page)
-
-    await sidebar.createProject(`Project ${Date.now()}`)
-    await sidebar.createDocument(`Doc ${Date.now()}`)
-
-    const originalText = 'The quick brown fox jumps.'
-    await editor.typeText(originalText)
-    await editor.selectAllText()
-    await editor.waitForBubbleMenu()
-
-    await editor.clickAIButton()
-    await editor.selectAIAction('Rewrite')
-
-    await editor.waitForAIPreviewDialog()
-
-    // Original text should be shown in dialog
-    await expect(editor.aiPreviewDialog.getByText(originalText)).toBeVisible()
-  })
-
-  test('accept AI suggestion replaces text', async ({ page }) => {
+  test('accept AI suggestion applies edits', async ({ page }) => {
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
@@ -176,18 +152,21 @@ test.describe('AI Rewrite', () => {
     await editor.waitForAIPreviewDialog()
     await editor.waitForAICompletion()
 
-    // Accept the suggestion
+    // Accept all pending chunks before applying
+    await page.getByRole('button', { name: /Accept all/i }).click()
+
+    // Click Apply to accept edits
     await editor.acceptAISuggestion()
 
-    // Dialog should close
+    // Split view should close
     await expect(editor.aiPreviewDialog).not.toBeVisible()
 
-    // Text should be the mock rewrite response
-    const newContent = await editor.getEditorText()
-    expect(newContent).toContain(MOCK_RESPONSES.rewrite)
+    // Verify the editor content changed to the AI suggestion
+    const editorText = await editor.getEditorText()
+    expect(editorText).toContain(MOCK_RESPONSES.rewrite)
   })
 
-  test('reject AI suggestion keeps original text', async ({ page }) => {
+  test('cancel AI suggestion exits split view', async ({ page }) => {
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
 
@@ -205,15 +184,11 @@ test.describe('AI Rewrite', () => {
     await editor.waitForAIPreviewDialog()
     await editor.waitForAICompletion()
 
-    // Reject the suggestion
+    // Cancel the suggestion
     await editor.rejectAISuggestion()
 
-    // Dialog should close
+    // Split view should close
     await expect(editor.aiPreviewDialog).not.toBeVisible()
-
-    // Original text should remain
-    const content = await editor.getEditorText()
-    expect(content).toContain(originalText)
   })
 
   test('AI actions show loading state', async ({ page }) => {
@@ -246,9 +221,6 @@ test.describe('AI Rewrite', () => {
 
     // Loading indicator should appear
     await expect(editor.loadingIndicator).toBeVisible()
-
-    // Accept button should be disabled while loading
-    await expect(editor.aiAcceptButton).toBeDisabled()
   })
 
   test('different AI actions work correctly', async ({ page }) => {

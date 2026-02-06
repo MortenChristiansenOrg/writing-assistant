@@ -40,7 +40,7 @@ export class TipTapAdapter implements EditorAdapter {
     const { from, to } = this.editor.state.selection
     if (from === to) return null
 
-    const text = this.editor.state.doc.textBetween(from, to, ' ')
+    const text = this.editor.state.doc.textBetween(from, to, '\n')
     if (!text.trim()) return null
 
     return { text, from, to }
@@ -82,6 +82,74 @@ export class TipTapAdapter implements EditorAdapter {
 
   getWordCount(): number {
     return this.editor.storage.characterCount?.words() ?? 0
+  }
+
+  getPlainText(): string {
+    return this.editor.state.doc.textBetween(
+      0,
+      this.editor.state.doc.content.size,
+      '\n'
+    )
+  }
+
+  getMarkdown(): string {
+    const storage = this.editor.storage as unknown as Record<string, unknown>
+    const markdown = storage.markdown as
+      | { getMarkdown?: () => string }
+      | undefined
+    return markdown?.getMarkdown?.() ?? this.getPlainText()
+  }
+
+  getSelectedMarkdown(): string | null {
+    const { from, to } = this.editor.state.selection
+    if (from === to) return null
+    // Get text with newline block separator for proper markdown
+    return this.editor.state.doc.textBetween(from, to, '\n')
+  }
+
+  getTextInRange(from: number, to: number): string {
+    return this.editor.state.doc.textBetween(from, to, '\n')
+  }
+
+  getTextOffsetRange(): {
+    from: number
+    to: number
+    text: string
+    fullText: string
+  } | null {
+    const { from, to } = this.editor.state.selection
+    if (from === to) return null
+
+    const sep = '\n\n'
+    const text = this.editor.state.doc.textBetween(from, to, sep)
+    if (!text.trim()) return null
+
+    const before = this.editor.state.doc.textBetween(0, from, sep)
+    const fullText = this.editor.state.doc.textBetween(
+      0,
+      this.editor.state.doc.content.size,
+      sep
+    )
+
+    return {
+      from: before.length,
+      to: before.length + text.length,
+      text,
+      fullText,
+    }
+  }
+
+  replaceRange(from: number, to: number, content: string): void {
+    this.editor
+      .chain()
+      .focus()
+      .deleteRange({ from, to })
+      .insertContentAt(from, content)
+      .run()
+  }
+
+  setMarkdownContent(markdown: string): void {
+    this.editor.commands.setContent(markdown)
   }
 
   destroy(): void {
