@@ -69,7 +69,7 @@ export function FeedbackRequestPopover({ projectId, loading, onRequest }: Feedba
             onChange={(e) => setFocusArea(e.target.value)}
           />
         </div>
-        {(!personas || personas.length === 0) && (
+        {personas !== undefined && personas.length === 0 && (
           <p className="px-2 py-3 text-center text-xs text-muted-foreground">
             No personas configured. Create one in Settings.
           </p>

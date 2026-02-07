@@ -52,6 +52,7 @@ export function useAISplitSession(): AISplitSession {
   const [fullDocumentText, setFullDocumentText] = useState('')
 
   const actionRef = useRef<AIAction>('rewrite')
+  const customPromptRef = useRef<string | undefined>(undefined)
 
   const { isLoading, runAction, clear, hasApiKey } = useAI({
     onComplete: (result) => {
@@ -80,6 +81,7 @@ export function useAISplitSession(): AISplitSession {
       setChunks([])
       setSavePoints([])
       actionRef.current = action
+      customPromptRef.current = customPrompt
       clear()
       void runAction(action, selectedText, undefined, customPrompt)
     },
@@ -129,7 +131,7 @@ export function useAISplitSession(): AISplitSession {
       setChunks([])
       actionRef.current = action
       clear()
-      void runAction(action, merged)
+      void runAction(action, merged, undefined, customPromptRef.current)
     },
     [chunks, clear, runAction]
   )

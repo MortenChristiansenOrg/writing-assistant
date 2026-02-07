@@ -11,7 +11,7 @@ interface FeedbackNote {
   category?: string
 }
 
-export function useAIFeedback(documentId: Id<'documents'>) {
+export function useAIFeedback(documentId: Id<'documents'> | undefined) {
   const settings = useQuery(api.userSettings.get)
   const createBatch = useMutation(api.reviewNotes.createBatch)
   const updateNote = useMutation(api.reviewNotes.update)
@@ -26,6 +26,11 @@ export function useAIFeedback(documentId: Id<'documents'>) {
   ) => {
     if (!settings?.vaultKeyId) {
       toast.error('Please add your OpenRouter API key in settings')
+      return
+    }
+
+    if (!documentId) {
+      toast.error('Document not loaded yet')
       return
     }
 
@@ -102,7 +107,7 @@ export function useAIFeedback(documentId: Id<'documents'>) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text,
-          persona: `${personaPrompt}\n\n${reReviewPrompt}`,
+          persona: personaPrompt ? `${personaPrompt}\n\n${reReviewPrompt}` : reReviewPrompt,
           model,
           apiKey: settings.vaultKeyId,
         }),

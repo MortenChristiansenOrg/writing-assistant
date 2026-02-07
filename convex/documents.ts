@@ -54,16 +54,15 @@ export const create = mutation({
       content: [{ type: 'paragraph' }],
     }
 
-    const doc: Record<string, unknown> = {
+    return await ctx.db.insert('documents', {
       projectId: args.projectId,
       userId,
       title: args.title,
       content: args.content ?? defaultContent,
+      ...(args.description !== undefined && { description: args.description }),
       createdAt: now,
       updatedAt: now,
-    }
-    if (args.description !== undefined) doc.description = args.description
-    return await ctx.db.insert('documents', doc as never)
+    })
   },
 })
 

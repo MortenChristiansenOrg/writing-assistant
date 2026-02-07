@@ -40,9 +40,12 @@ export const createBatch = mutation({
     const userId = await auth.getUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
+    const doc = await ctx.db.get(args.documentId)
+    if (!doc || doc.userId !== userId) throw new Error('Document not found')
+
     const now = Date.now()
     for (const note of args.notes) {
-      const doc: Record<string, unknown> = {
+      await ctx.db.insert('reviewNotes', {
         documentId: args.documentId,
         userId,
         personaName: args.personaName,
@@ -51,10 +54,9 @@ export const createBatch = mutation({
         severity: note.severity,
         dismissed: false,
         createdAt: now,
-      }
-      if (args.personaId !== undefined) doc.personaId = args.personaId
-      if (note.category !== undefined) doc.category = note.category
-      await ctx.db.insert('reviewNotes', doc as never)
+        ...(args.personaId !== undefined && { personaId: args.personaId }),
+        ...(note.category !== undefined && { category: note.category }),
+      })
     }
   },
 })

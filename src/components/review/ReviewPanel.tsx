@@ -109,7 +109,7 @@ export function ReviewPanel({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-2 p-3">
-          {loading && (
+          {loading && filtered.length === 0 && (
             <>
               <Skeleton className="h-20 w-full rounded-md" />
               <Skeleton className="h-16 w-full rounded-md" />

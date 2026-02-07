@@ -180,6 +180,12 @@ export const feedback = httpAction(async (_ctx, request) => {
     try {
       notes = JSON.parse(result.text)
       if (!Array.isArray(notes)) throw new Error('Not an array')
+      for (const note of notes) {
+        if (typeof note !== 'object' || note === null) throw new Error('Invalid note')
+        if (typeof (note as Record<string, unknown>).comment !== 'string') throw new Error('Missing comment')
+        if (!['info', 'suggestion', 'warning'].includes((note as Record<string, unknown>).severity as string))
+          throw new Error('Invalid severity')
+      }
     } catch {
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response', raw: result.text }),

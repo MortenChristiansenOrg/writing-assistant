@@ -30,6 +30,10 @@ export function EditorPage() {
     api.projects.get,
     projectId ? { id: projectId as Id<'projects'> } : 'skip'
   )
+  const personas = useQuery(
+    api.personas.listForProject,
+    projectId ? { projectId: projectId as Id<'projects'> } : 'skip'
+  )
   const updateDocument = useMutation(api.documents.update)
   const createRevision = useMutation(api.revisions.create)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -43,8 +47,8 @@ export function EditorPage() {
   const descriptionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const session = useAISplitSession()
-  const review = useReviewNotes(docId as Id<'documents'>)
-  const feedback = useAIFeedback(docId as Id<'documents'>)
+  const review = useReviewNotes(docId as Id<'documents'> | undefined)
+  const feedback = useAIFeedback(docId as Id<'documents'> | undefined)
 
   // Sync description from server on first load
   useEffect(() => {
@@ -188,11 +192,12 @@ export function EditorPage() {
     const note = review.notes.find((n) => n._id === noteId)
     if (!note) return
 
+    const persona = note.personaId ? personas?.find((p) => p._id === note.personaId) : undefined
     void feedback.reReview(
       noteId,
       note.comment,
       text,
-      '', // persona prompt not stored on note, use empty
+      persona?.systemPrompt ?? '',
       note.model
     )
   }
