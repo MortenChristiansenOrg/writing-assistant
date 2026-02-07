@@ -148,7 +148,7 @@ export const feedback = httpAction(async (_ctx, request) => {
       focusArea?: string
     }
 
-    if (!text || !apiKey) {
+    if (text == null || !apiKey) {
       return new Response('Missing required fields', { status: 400, headers: corsHeaders })
     }
 
@@ -166,7 +166,8 @@ export const feedback = httpAction(async (_ctx, request) => {
     if (projectDescription) prompt += `Project context: ${projectDescription}\n\n`
     if (documentDescription) prompt += `Document description: ${documentDescription}\n\n`
     if (focusArea) prompt += `Focus area: The reviewer specifically asked you to focus on: ${focusArea}\n\n`
-    prompt += text
+    if (text) prompt += text
+    else prompt += '(No text written yet — provide feedback based on the context and focus area above.)'
 
     const result = await generateText({
       model: openrouter(selectedModel),

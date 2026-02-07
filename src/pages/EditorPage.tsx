@@ -153,8 +153,8 @@ export function EditorPage() {
     const adapter = editorAdapterRef.current
     if (!adapter) return
     const text = adapter.getMarkdown()
-    if (!text.trim()) {
-      toast.error('Document is empty')
+    if (!text.trim() && !focusArea?.trim()) {
+      toast.error('Provide text or a focus area for feedback')
       return
     }
     setReviewOpen(true)
