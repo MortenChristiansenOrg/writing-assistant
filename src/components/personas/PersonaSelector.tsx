@@ -13,6 +13,7 @@ import { User } from 'lucide-react'
 interface Persona {
   _id: Id<'personas'>
   name: string
+  model?: string
 }
 
 interface PersonaSelectorProps {

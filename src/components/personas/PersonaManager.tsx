@@ -20,9 +20,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Pencil, Trash2, User } from 'lucide-react'
 import { toast } from 'sonner'
+import { MODELS } from '@/lib/models'
 
 interface Persona {
   _id: Id<'personas'>
@@ -30,6 +38,7 @@ interface Persona {
   description?: string
   systemPrompt: string
   isDefault: boolean
+  model?: string
 }
 
 interface PersonaFormData {
@@ -37,6 +46,7 @@ interface PersonaFormData {
   description: string
   systemPrompt: string
   isDefault: boolean
+  model: string
 }
 
 const defaultFormData: PersonaFormData = {
@@ -44,6 +54,7 @@ const defaultFormData: PersonaFormData = {
   description: '',
   systemPrompt: '',
   isDefault: false,
+  model: '',
 }
 
 export function PersonaManager() {
@@ -64,14 +75,13 @@ export function PersonaManager() {
     }
 
     try {
+      const { model: rawModel, ...rest } = formData
+      const base = rawModel ? { ...rest, model: rawModel } : rest
       if (editingId) {
-        await updatePersona({
-          id: editingId,
-          ...formData,
-        })
+        await updatePersona({ id: editingId, ...base })
         toast.success('Persona updated')
       } else {
-        await createPersona(formData)
+        await createPersona(base)
         toast.success('Persona created')
       }
       setDialogOpen(false)
@@ -89,6 +99,7 @@ export function PersonaManager() {
       description: persona.description ?? '',
       systemPrompt: persona.systemPrompt,
       isDefault: persona.isDefault,
+      model: persona.model ?? '',
     })
     setDialogOpen(true)
   }
@@ -160,6 +171,27 @@ export function PersonaManager() {
                   rows={5}
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="model">Model (optional)</Label>
+                <Select
+                  value={formData.model || 'default'}
+                  onValueChange={(v) =>
+                    setFormData({ ...formData, model: v === 'default' ? '' : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Use account default" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Use account default</SelectItem>
+                    {MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -204,6 +236,11 @@ export function PersonaManager() {
                   <CardTitle className="text-base">{persona.name}</CardTitle>
                   {persona.isDefault && (
                     <Badge variant="secondary">Default</Badge>
+                  )}
+                  {persona.model && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {MODELS.find((m) => m.id === persona.model)?.name ?? persona.model}
+                    </Badge>
                   )}
                 </div>
                 <div className="flex gap-1">

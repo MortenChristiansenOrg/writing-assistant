@@ -72,11 +72,33 @@ export default defineSchema({
     description: v.optional(v.string()),
     systemPrompt: v.string(),
     isDefault: v.boolean(),
+    model: v.optional(v.string()),
+    projectId: v.optional(v.id('projects')),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index('by_user', ['userId'])
-    .index('by_user_default', ['userId', 'isDefault']),
+    .index('by_user_default', ['userId', 'isDefault'])
+    .index('by_user_project', ['userId', 'projectId']),
+
+  reviewNotes: defineTable({
+    documentId: v.id('documents'),
+    userId: v.id('users'),
+    personaId: v.optional(v.id('personas')),
+    personaName: v.string(),
+    model: v.string(),
+    comment: v.string(),
+    severity: v.union(
+      v.literal('info'),
+      v.literal('suggestion'),
+      v.literal('warning')
+    ),
+    category: v.optional(v.string()),
+    dismissed: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index('by_document', ['documentId'])
+    .index('by_document_user', ['documentId', 'userId']),
 
   spendingSessions: defineTable({
     userId: v.id('users'),

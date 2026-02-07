@@ -43,12 +43,39 @@ export const getDefault = query({
   },
 })
 
+export const listForProject = query({
+  args: { projectId: v.optional(v.id('projects')) },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx)
+    if (!userId) return []
+
+    const global = await ctx.db
+      .query('personas')
+      .withIndex('by_user', (q) => q.eq('userId', userId))
+      .filter((q) => q.eq(q.field('projectId'), undefined))
+      .collect()
+
+    if (!args.projectId) return global
+
+    const projectScoped = await ctx.db
+      .query('personas')
+      .withIndex('by_user_project', (q) =>
+        q.eq('userId', userId).eq('projectId', args.projectId)
+      )
+      .collect()
+
+    return [...global, ...projectScoped]
+  },
+})
+
 export const create = mutation({
   args: {
     name: v.string(),
     description: v.optional(v.string()),
     systemPrompt: v.string(),
     isDefault: v.optional(v.boolean()),
+    model: v.optional(v.string()),
+    projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx)
@@ -76,6 +103,8 @@ export const create = mutation({
       ...(args.description !== undefined && { description: args.description }),
       systemPrompt: args.systemPrompt,
       isDefault,
+      ...(args.model !== undefined && { model: args.model }),
+      ...(args.projectId !== undefined && { projectId: args.projectId }),
       createdAt: now,
       updatedAt: now,
     })
@@ -89,6 +118,8 @@ export const update = mutation({
     description: v.optional(v.string()),
     systemPrompt: v.optional(v.string()),
     isDefault: v.optional(v.boolean()),
+    model: v.optional(v.string()),
+    projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
     const userId = await auth.getUserId(ctx)
@@ -119,6 +150,8 @@ export const update = mutation({
         systemPrompt: args.systemPrompt,
       }),
       ...(args.isDefault !== undefined && { isDefault: args.isDefault }),
+      ...(args.model !== undefined && { model: args.model }),
+      ...(args.projectId !== undefined && { projectId: args.projectId }),
       updatedAt: Date.now(),
     })
   },

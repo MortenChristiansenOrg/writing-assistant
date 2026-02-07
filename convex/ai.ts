@@ -1,6 +1,6 @@
 import { httpAction } from './_generated/server'
 import { createOpenAI } from '@ai-sdk/openai'
-import { streamText } from 'ai'
+import { streamText, generateText } from 'ai'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -112,5 +112,79 @@ export const stream = httpAction(async (_ctx, request) => {
   } catch (error) {
     console.error('AI stream error:', error)
     return new Response('Internal server error', { status: 500, headers: corsHeaders })
+  }
+})
+
+const FEEDBACK_SYSTEM = `You are a literary editor reviewing a piece of writing. Provide editorial feedback as a JSON array. Each item must have:
+- "comment": a specific, actionable note (1-3 sentences)
+- "severity": one of "info", "suggestion", or "warning"
+- "category": optional tag like "pacing", "dialog", "clarity", "tone", "structure", "character", "consistency"
+
+Return ONLY a valid JSON array, no markdown fencing or other text. Aim for 3-8 notes depending on text length.`
+
+export const feedback = httpAction(async (_ctx, request) => {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }
+  if (request.method !== 'POST') {
+    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+  }
+
+  try {
+    let body: unknown
+    try {
+      body = await request.json()
+    } catch {
+      return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
+    }
+    const { text, persona, model, apiKey } = body as {
+      text: string
+      persona?: string
+      model?: string
+      apiKey: string
+    }
+
+    if (!text || !apiKey) {
+      return new Response('Missing required fields', { status: 400, headers: corsHeaders })
+    }
+
+    const openrouter = createOpenAI({
+      baseURL: 'https://openrouter.ai/api/v1',
+      apiKey,
+    })
+
+    const selectedModel = model ?? 'anthropic/claude-sonnet-4'
+    const systemPrompt = persona
+      ? `${persona}\n\n${FEEDBACK_SYSTEM}`
+      : FEEDBACK_SYSTEM
+
+    const result = await generateText({
+      model: openrouter(selectedModel),
+      system: systemPrompt,
+      prompt: text,
+      maxOutputTokens: 2048,
+    })
+
+    // Validate JSON array
+    let notes: unknown
+    try {
+      notes = JSON.parse(result.text)
+      if (!Array.isArray(notes)) throw new Error('Not an array')
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse AI response', raw: result.text }),
+        { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      )
+    }
+
+    return new Response(JSON.stringify(notes), {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    })
+  } catch (error) {
+    console.error('AI feedback error:', error)
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'AI request failed' }),
+      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    )
   }
 })

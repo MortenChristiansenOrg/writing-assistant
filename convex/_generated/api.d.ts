@@ -14,6 +14,7 @@ import type * as documents from "../documents.js";
 import type * as http from "../http.js";
 import type * as personas from "../personas.js";
 import type * as projects from "../projects.js";
+import type * as reviewNotes from "../reviewNotes.js";
 import type * as revisions from "../revisions.js";
 import type * as spending from "../spending.js";
 import type * as userSettings from "../userSettings.js";
@@ -31,6 +32,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   personas: typeof personas;
   projects: typeof projects;
+  reviewNotes: typeof reviewNotes;
   revisions: typeof revisions;
   spending: typeof spending;
   userSettings: typeof userSettings;

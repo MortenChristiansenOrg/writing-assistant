@@ -93,6 +93,11 @@ body {
   --diff-accepted-bg: oklch(0.92 0.06 155);
   --diff-deemphasis: oklch(0.7 0 0 / 35%);
   --split-divider: oklch(0.88 0 0);
+  --review-accent: oklch(0.75 0.12 75);
+  --review-accent-muted: oklch(0.92 0.05 75);
+  --review-info: oklch(0.65 0.15 250);
+  --review-suggestion: oklch(0.75 0.12 75);
+  --review-warning: oklch(0.65 0.18 30);
 }
 
 .dark {
@@ -134,6 +139,11 @@ body {
   --diff-accepted-bg: oklch(0.3 0.05 155);
   --diff-deemphasis: oklch(0.5 0 0 / 35%);
   --split-divider: oklch(0.25 0 0);
+  --review-accent: oklch(0.75 0.12 75);
+  --review-accent-muted: oklch(0.3 0.06 75);
+  --review-info: oklch(0.6 0.15 250);
+  --review-suggestion: oklch(0.75 0.12 75);
+  --review-warning: oklch(0.6 0.18 30);
 }
 
 @layer base {
@@ -262,6 +272,24 @@ body {
 
 .diff-chunk-interactive:hover {
   filter: brightness(0.95);
+}
+
+/* Review panel slide-in */
+@keyframes review-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.review-panel-enter {
+  animation: review-slide-in 0.2s ease-out;
+}
+
+.review-note-card {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.review-note-card.dismissed {
+  opacity: 0.5;
 }
 
 /* Inline reject/revert buttons at end of each chunk */

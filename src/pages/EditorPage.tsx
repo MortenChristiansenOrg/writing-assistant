@@ -10,6 +10,12 @@ import { toast } from 'sonner'
 import type { AIAction } from '@/hooks/useAI'
 import { useAISplitSession } from '@/hooks/useAISplitSession'
 import { HistoryPanel } from '@/components/sidebar/HistoryPanel'
+import { useReviewNotes } from '@/hooks/useReviewNotes'
+import { useAIFeedback } from '@/hooks/useAIFeedback'
+import { ReviewPanel } from '@/components/review/ReviewPanel'
+import { FeedbackRequestPopover } from '@/components/review/FeedbackRequestPopover'
+import { MessageSquareText } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 const AUTOSAVE_DELAY = 500
 
@@ -26,8 +32,11 @@ export function EditorPage() {
   const editorAdapterRef = useRef<EditorAdapter | null>(null)
 
   const [lastAction, setLastAction] = useState<AIAction>('rewrite')
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   const session = useAISplitSession()
+  const review = useReviewNotes(docId as Id<'documents'>)
+  const feedback = useAIFeedback(docId as Id<'documents'>)
 
   const handleContentChange = (content: DocumentContent) => {
     if (!docId) return
@@ -100,6 +109,23 @@ export function EditorPage() {
     toast.success('AI edits applied')
   }
 
+  const handleFeedbackRequest = (persona: {
+    id?: Id<'personas'>
+    name: string
+    systemPrompt: string
+    model?: string
+  }) => {
+    const adapter = editorAdapterRef.current
+    if (!adapter) return
+    const text = adapter.getMarkdown()
+    if (!text.trim()) {
+      toast.error('Document is empty')
+      return
+    }
+    setReviewOpen(true)
+    void feedback.requestFeedback(text, persona)
+  }
+
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
@@ -137,48 +163,87 @@ export function EditorPage() {
     data: document.content as Record<string, unknown>,
   }
 
+  const activeNoteCount = review.notes.filter((n) => !n.dismissed).length
+
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b px-4 py-2">
         <h1 className="text-lg font-medium">{document.title}</h1>
-        <HistoryPanel documentId={docId as Id<'documents'>} />
+        <div className="flex items-center gap-2">
+          <FeedbackRequestPopover
+            loading={feedback.loading}
+            onRequest={handleFeedbackRequest}
+          />
+          <Button
+            variant={reviewOpen ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setReviewOpen(!reviewOpen)}
+          >
+            <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
+            Review
+            {activeNoteCount > 0 && (
+              <span
+                className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium text-white"
+                style={{ background: 'var(--review-accent)' }}
+              >
+                {activeNoteCount}
+              </span>
+            )}
+          </Button>
+          <HistoryPanel documentId={docId as Id<'documents'>} />
+        </div>
       </header>
 
-      {session.active && (
-        <div className="flex-1 overflow-hidden">
-          <AISplitView
-            originalDocumentText={session.fullDocumentText}
-            baselineText={session.baselineText}
-            selectionRange={session.selectionRange!}
-            chunks={session.chunks}
-            isLoading={session.isLoading}
-            acceptedCount={session.acceptedCount}
-            pendingCount={session.pendingCount}
-            canUndo={session.savePoints.length > 0}
-            lastAction={lastAction}
-            onAcceptChunk={session.acceptChunk}
-            onRevertChunk={session.revertChunk}
-            onAcceptAll={session.acceptAll}
-            onRegenerate={session.regenerate}
-            onUndo={session.undoRegeneration}
-            onFinish={handleFinish}
-            onCancel={session.cancelAll}
-          />
-        </div>
-      )}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {session.active && (
+            <div className="flex-1 overflow-hidden">
+              <AISplitView
+                originalDocumentText={session.fullDocumentText}
+                baselineText={session.baselineText}
+                selectionRange={session.selectionRange!}
+                chunks={session.chunks}
+                isLoading={session.isLoading}
+                acceptedCount={session.acceptedCount}
+                pendingCount={session.pendingCount}
+                canUndo={session.savePoints.length > 0}
+                lastAction={lastAction}
+                onAcceptChunk={session.acceptChunk}
+                onRevertChunk={session.revertChunk}
+                onAcceptAll={session.acceptAll}
+                onRegenerate={session.regenerate}
+                onUndo={session.undoRegeneration}
+                onFinish={handleFinish}
+                onCancel={session.cancelAll}
+              />
+            </div>
+          )}
 
-      <div
-        className="flex-1 overflow-auto"
-        style={{ display: session.active ? 'none' : undefined }}
-      >
-        <Editor
-          content={initialContent}
-          onChange={handleContentChange}
-          onAdapterReady={(adapter) => {
-            editorAdapterRef.current = adapter
-          }}
-          onAIAction={handleAIAction}
-        />
+          <div
+            className="flex-1 overflow-auto"
+            style={{ display: session.active ? 'none' : undefined }}
+          >
+            <Editor
+              content={initialContent}
+              onChange={handleContentChange}
+              onAdapterReady={(adapter) => {
+                editorAdapterRef.current = adapter
+              }}
+              onAIAction={handleAIAction}
+            />
+          </div>
+        </div>
+
+        {reviewOpen && !session.active && (
+          <ReviewPanel
+            notes={review.notes}
+            loading={feedback.loading}
+            onDismiss={review.dismiss}
+            onUndismiss={review.undismiss}
+            onClearAll={review.clearAll}
+            onClose={() => setReviewOpen(false)}
+          />
+        )}
       </div>
     </div>
   )
