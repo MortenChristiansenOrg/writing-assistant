@@ -65,7 +65,7 @@ THREADS=$(gh api graphql \
 # 2. Fetch review-body comments (outside diff range + nitpick sections)
 # These are embedded in the review body markdown and have no thread/resolved state.
 # We only look at the LATEST CodeRabbit review to avoid duplicates from repeated reviews.
-REVIEW_BODY_COMMENTS=$(gh api "repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" --paginate | python3 -c '
+REVIEW_BODY_COMMENTS=$(gh api "repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" --paginate --jq '.' | jq -s 'add' | python3 -c '
 import json, re, sys
 
 reviews = json.load(sys.stdin)
@@ -117,7 +117,7 @@ for m in re.finditer(r"<summary>(?:⚠️ Outside diff range comments|🧹 Nitpi
             continue
 
         # Split into individual comments, each starting with `LINE_RANGE`:
-        comment_blocks = re.split(r"(?=`\d)", file_content)
+        comment_blocks = re.split(r"(?m)(?=^`\d)", file_content)
         for block in comment_blocks:
             block = block.strip()
             if not block:
@@ -164,10 +164,15 @@ print(json.dumps(comments))
 ' 2>/dev/null || echo '[]')
 
 # 3. Merge both arrays (pipe via stdin to avoid ARG_MAX)
-printf '%s\n%s' "$THREADS" "$REVIEW_BODY_COMMENTS" | python3 -c "
+python3 -c "
 import json, sys
-lines = sys.stdin.read().split('\n', 1)
-threads = json.loads(lines[0])
-body_comments = json.loads(lines[1])
-print(json.dumps(threads + body_comments, indent=2))
-"
+decoder = json.JSONDecoder()
+data = sys.stdin.read().strip()
+first, idx = decoder.raw_decode(data)
+rest = data[idx:].strip()
+second = json.loads(rest) if rest else []
+print(json.dumps(first + second, indent=2))
+" <<EOF
+${THREADS}
+${REVIEW_BODY_COMMENTS}
+EOF

@@ -204,6 +204,10 @@ export function EditorPage() {
     }
 
     const persona = note.personaId ? personas?.find((p) => p._id === note.personaId) : undefined
+    if (note.personaId && !persona) {
+      toast.error('Persona no longer exists')
+      return
+    }
     void feedback.reReview(
       noteId,
       note.comment,
@@ -266,23 +270,23 @@ export function EditorPage() {
               loading={feedback.loading}
               onRequest={handleFeedbackRequest}
             />
-          <Button
-            variant={reviewOpen ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setReviewOpen(!reviewOpen)}
-          >
-            <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
-            Review
-            {activeNoteCount > 0 && (
-              <span
-                className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium text-white"
-                style={{ background: 'var(--review-accent)' }}
-              >
-                {activeNoteCount}
-              </span>
-            )}
-          </Button>
-          <HistoryPanel documentId={docId as Id<'documents'>} />
+            <Button
+              variant={reviewOpen ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setReviewOpen(!reviewOpen)}
+            >
+              <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
+              Review
+              {activeNoteCount > 0 && (
+                <span
+                  className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium text-white"
+                  style={{ background: 'var(--review-accent)' }}
+                >
+                  {activeNoteCount}
+                </span>
+              )}
+            </Button>
+            <HistoryPanel documentId={docId as Id<'documents'>} />
           </div>
         </div>
         <Input
