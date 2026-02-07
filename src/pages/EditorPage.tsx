@@ -50,6 +50,11 @@ export function EditorPage() {
   const review = useReviewNotes(docId as Id<'documents'> | undefined)
   const feedback = useAIFeedback(docId as Id<'documents'> | undefined)
 
+  // Reset description sync flag when document changes
+  useEffect(() => {
+    setDescriptionInitialized(false)
+  }, [docId])
+
   // Sync description from server on first load
   useEffect(() => {
     if (document && !descriptionInitialized) {
