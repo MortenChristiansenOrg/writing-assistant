@@ -72,7 +72,8 @@ export function ProjectPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 p-8">
+    <div className="h-full overflow-auto">
+    <div className="mx-auto max-w-3xl space-y-8 px-6 py-8">
       <div>
         <h1 className="text-2xl font-semibold">Project Settings</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -110,6 +111,7 @@ export function ProjectPage() {
       <div className="border-t pt-6">
         <PersonaManager projectId={projectId as Id<'projects'>} />
       </div>
+    </div>
     </div>
   )
 }

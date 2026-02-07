@@ -81,7 +81,8 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="container max-w-4xl px-6 py-8 space-y-8">
+    <div className="h-full overflow-auto">
+    <div className="mx-auto max-w-3xl space-y-8 px-6 py-8">
       <h1 className="text-2xl font-bold">Settings</h1>
 
       <Card>
@@ -221,6 +222,7 @@ export function SettingsPage() {
           <PersonaManager />
         </CardContent>
       </Card>
+    </div>
     </div>
   )
 }
