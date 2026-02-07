@@ -192,6 +192,12 @@ export function EditorPage() {
     const note = review.notes.find((n) => n._id === noteId)
     if (!note) return
 
+    // If note has a persona but personas haven't loaded yet, wait
+    if (note.personaId && !personas) {
+      toast.error('Personas still loading, try again shortly')
+      return
+    }
+
     const persona = note.personaId ? personas?.find((p) => p._id === note.personaId) : undefined
     void feedback.reReview(
       noteId,
