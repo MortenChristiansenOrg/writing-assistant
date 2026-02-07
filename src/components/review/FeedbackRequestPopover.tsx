@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from 'convex/react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
@@ -19,13 +20,14 @@ interface Persona {
 }
 
 interface FeedbackRequestPopoverProps {
+  projectId?: Id<'projects'>
   loading: boolean
   onRequest: (persona: {
     id?: Id<'personas'>
     name: string
     systemPrompt: string
     model?: string
-  }) => void
+  }, focusArea?: string) => void
 }
 
 function modelLabel(modelId?: string): string {
@@ -34,11 +36,16 @@ function modelLabel(modelId?: string): string {
   return found ? found.name : modelId.split('/').pop() ?? ''
 }
 
-export function FeedbackRequestPopover({ loading, onRequest }: FeedbackRequestPopoverProps) {
-  const personas = useQuery(api.personas.list) as Persona[] | undefined
+export function FeedbackRequestPopover({ projectId, loading, onRequest }: FeedbackRequestPopoverProps) {
+  const [open, setOpen] = useState(false)
+  const [focusArea, setFocusArea] = useState('')
+  const personas = useQuery(
+    api.personas.listForProject,
+    projectId ? { projectId } : {}
+  ) as Persona[] | undefined
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" disabled={loading}>
           {loading ? (
@@ -49,10 +56,19 @@ export function FeedbackRequestPopover({ loading, onRequest }: FeedbackRequestPo
           Feedback
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-64 p-2">
+      <PopoverContent align="end" className="w-72 p-2">
         <p className="mb-2 px-2 text-xs font-medium text-muted-foreground">
           Choose a persona to review your text
         </p>
+        <div className="mb-2 px-2">
+          <textarea
+            className="w-full rounded-md border bg-transparent px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder="Focus on something specific... (optional)"
+            rows={2}
+            value={focusArea}
+            onChange={(e) => setFocusArea(e.target.value)}
+          />
+        </div>
         {(!personas || personas.length === 0) && (
           <p className="px-2 py-3 text-center text-xs text-muted-foreground">
             No personas configured. Create one in Settings.
@@ -64,13 +80,16 @@ export function FeedbackRequestPopover({ loading, onRequest }: FeedbackRequestPo
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
             disabled={loading}
             onClick={() => {
+              setOpen(false)
               const req: { id?: Id<'personas'>; name: string; systemPrompt: string; model?: string } = {
                 id: p._id,
                 name: p.name,
                 systemPrompt: p.systemPrompt,
               }
               if (p.model) req.model = p.model
-              onRequest(req)
+              const focus = focusArea.trim() || undefined
+              onRequest(req, focus)
+              setFocusArea('')
             }}
           >
             <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

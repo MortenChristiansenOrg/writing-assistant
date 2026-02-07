@@ -5,7 +5,7 @@ import type { Id } from '../../convex/_generated/dataModel'
 import { Editor } from '@/components/editor/Editor'
 import { AISplitView } from '@/components/editor/AISplitView'
 import type { DocumentContent, EditorAdapter } from '@/lib/editor'
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import type { AIAction } from '@/hooks/useAI'
 import { useAISplitSession } from '@/hooks/useAISplitSession'
@@ -16,14 +16,19 @@ import { ReviewPanel } from '@/components/review/ReviewPanel'
 import { FeedbackRequestPopover } from '@/components/review/FeedbackRequestPopover'
 import { MessageSquareText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 const AUTOSAVE_DELAY = 500
 
 export function EditorPage() {
-  const { docId } = useParams()
+  const { docId, projectId } = useParams()
   const document = useQuery(
     api.documents.get,
     docId ? { id: docId as Id<'documents'> } : 'skip'
+  )
+  const project = useQuery(
+    api.projects.get,
+    projectId ? { id: projectId as Id<'projects'> } : 'skip'
   )
   const updateDocument = useMutation(api.documents.update)
   const createRevision = useMutation(api.revisions.create)
@@ -33,10 +38,31 @@ export function EditorPage() {
 
   const [lastAction, setLastAction] = useState<AIAction>('rewrite')
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [descriptionValue, setDescriptionValue] = useState('')
+  const [descriptionInitialized, setDescriptionInitialized] = useState(false)
+  const descriptionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const session = useAISplitSession()
   const review = useReviewNotes(docId as Id<'documents'>)
   const feedback = useAIFeedback(docId as Id<'documents'>)
+
+  // Sync description from server on first load
+  useEffect(() => {
+    if (document && !descriptionInitialized) {
+      setDescriptionValue((document as { description?: string }).description ?? '')
+      setDescriptionInitialized(true)
+    }
+  }, [document, descriptionInitialized])
+
+  const handleDescriptionChange = useCallback((value: string) => {
+    setDescriptionValue(value)
+    if (descriptionTimeoutRef.current) clearTimeout(descriptionTimeoutRef.current)
+    descriptionTimeoutRef.current = setTimeout(() => {
+      if (docId) {
+        updateDocument({ id: docId as Id<'documents'>, description: value }).catch(console.error)
+      }
+    }, AUTOSAVE_DELAY)
+  }, [docId, updateDocument])
 
   const handleContentChange = (content: DocumentContent) => {
     if (!docId) return
@@ -114,7 +140,7 @@ export function EditorPage() {
     name: string
     systemPrompt: string
     model?: string
-  }) => {
+  }, focusArea?: string) => {
     const adapter = editorAdapterRef.current
     if (!adapter) return
     const text = adapter.getMarkdown()
@@ -123,7 +149,52 @@ export function EditorPage() {
       return
     }
     setReviewOpen(true)
-    void feedback.requestFeedback(text, persona)
+    const opts: { projectDescription?: string; documentDescription?: string; focusArea?: string } = {}
+    if (project?.description) opts.projectDescription = project.description
+    const docDesc = (document as { description?: string })?.description
+    if (docDesc) opts.documentDescription = docDesc
+    if (focusArea) opts.focusArea = focusArea
+    void feedback.requestFeedback(text, persona, opts)
+  }
+
+  const handleApplySuggestion = (comment: string) => {
+    if (!session.hasApiKey) {
+      toast.error('Please add your OpenRouter API key in settings')
+      return
+    }
+    const adapter = editorAdapterRef.current
+    if (!adapter) return
+
+    const fullText = adapter.getMarkdown()
+    if (!fullText.trim()) return
+
+    setReviewOpen(false)
+    setLastAction('rewrite')
+    session.enterSplitMode(
+      fullText,
+      { from: 0, to: fullText.length },
+      'rewrite',
+      fullText,
+      `Apply this editorial suggestion to the text:\n\n${comment}`
+    )
+  }
+
+  const handleReReview = (noteId: Id<'reviewNotes'>) => {
+    const adapter = editorAdapterRef.current
+    if (!adapter) return
+    const text = adapter.getMarkdown()
+    if (!text.trim()) return
+
+    const note = review.notes.find((n) => n._id === noteId)
+    if (!note) return
+
+    void feedback.reReview(
+      noteId,
+      note.comment,
+      text,
+      '', // persona prompt not stored on note, use empty
+      note.model
+    )
   }
 
   useEffect(() => {
@@ -167,13 +238,15 @@ export function EditorPage() {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b px-4 py-2">
-        <h1 className="text-lg font-medium">{document.title}</h1>
-        <div className="flex items-center gap-2">
-          <FeedbackRequestPopover
-            loading={feedback.loading}
-            onRequest={handleFeedbackRequest}
-          />
+      <header className="border-b px-4 py-2">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-medium">{document.title}</h1>
+          <div className="flex items-center gap-2">
+            <FeedbackRequestPopover
+              {...(projectId ? { projectId: projectId as Id<'projects'> } : {})}
+              loading={feedback.loading}
+              onRequest={handleFeedbackRequest}
+            />
           <Button
             variant={reviewOpen ? 'secondary' : 'ghost'}
             size="sm"
@@ -191,7 +264,14 @@ export function EditorPage() {
             )}
           </Button>
           <HistoryPanel documentId={docId as Id<'documents'>} />
+          </div>
         </div>
+        <Input
+          value={descriptionValue}
+          onChange={(e) => handleDescriptionChange(e.target.value)}
+          placeholder="Document description (optional)"
+          className="mt-1 h-7 border-none bg-transparent px-0 text-xs text-muted-foreground shadow-none focus-visible:ring-0"
+        />
       </header>
 
       <div className="flex flex-1 overflow-hidden">
@@ -242,6 +322,9 @@ export function EditorPage() {
             onUndismiss={review.undismiss}
             onClearAll={review.clearAll}
             onClose={() => setReviewOpen(false)}
+            onApplySuggestion={handleApplySuggestion}
+            onReReview={handleReReview}
+            reReviewingId={feedback.reReviewingId}
           />
         )}
       </div>

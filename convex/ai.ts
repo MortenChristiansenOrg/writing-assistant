@@ -38,19 +38,20 @@ export const stream = httpAction(async (_ctx, request) => {
     } catch {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
-    const { action, text, persona, model, apiKey } = body as {
+    const { action, text, persona, model, apiKey, customPrompt } = body as {
       action: string
       text: string
       persona?: string
       model?: string
       apiKey: string
+      customPrompt?: string
     }
 
     if (!action || !text || !apiKey) {
       return new Response('Missing required fields', { status: 400, headers: corsHeaders })
     }
 
-    const actionPrompt = ACTION_PROMPTS[action]
+    const actionPrompt = customPrompt ?? ACTION_PROMPTS[action]
     if (!actionPrompt) {
       return new Response('Invalid action', { status: 400, headers: corsHeaders })
     }
@@ -137,11 +138,14 @@ export const feedback = httpAction(async (_ctx, request) => {
     } catch {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
     }
-    const { text, persona, model, apiKey } = body as {
+    const { text, persona, model, apiKey, projectDescription, documentDescription, focusArea } = body as {
       text: string
       persona?: string
       model?: string
       apiKey: string
+      projectDescription?: string
+      documentDescription?: string
+      focusArea?: string
     }
 
     if (!text || !apiKey) {
@@ -158,10 +162,16 @@ export const feedback = httpAction(async (_ctx, request) => {
       ? `${persona}\n\n${FEEDBACK_SYSTEM}`
       : FEEDBACK_SYSTEM
 
+    let prompt = ''
+    if (projectDescription) prompt += `Project context: ${projectDescription}\n\n`
+    if (documentDescription) prompt += `Document description: ${documentDescription}\n\n`
+    if (focusArea) prompt += `Focus area: The reviewer specifically asked you to focus on: ${focusArea}\n\n`
+    prompt += text
+
     const result = await generateText({
       model: openrouter(selectedModel),
       system: systemPrompt,
-      prompt: text,
+      prompt,
       maxOutputTokens: 2048,
     })
 
