@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Pencil, Trash2, User } from 'lucide-react'
+import { Plus, Pencil, Trash2, User, Globe } from 'lucide-react'
 import { toast } from 'sonner'
 import { MODELS } from '@/lib/models'
 
@@ -39,6 +39,7 @@ interface Persona {
   systemPrompt: string
   isDefault: boolean
   model?: string
+  projectId?: Id<'projects'>
 }
 
 interface PersonaFormData {
@@ -57,8 +58,15 @@ const defaultFormData: PersonaFormData = {
   model: '',
 }
 
-export function PersonaManager() {
-  const personas = useQuery(api.personas.list) as Persona[] | undefined
+interface PersonaManagerProps {
+  projectId?: Id<'projects'>
+}
+
+export function PersonaManager({ projectId }: PersonaManagerProps = {}) {
+  const personas = useQuery(
+    api.personas.listForProject,
+    projectId ? { projectId } : {}
+  ) as Persona[] | undefined
   const createPersona = useMutation(api.personas.create)
   const updatePersona = useMutation(api.personas.update)
   const deletePersona = useMutation(api.personas.remove)
@@ -81,7 +89,8 @@ export function PersonaManager() {
         await updatePersona({ id: editingId, ...base })
         toast.success('Persona updated')
       } else {
-        await createPersona(base)
+        const createArgs = projectId ? { ...base, projectId } : base
+        await createPersona(createArgs)
         toast.success('Persona created')
       }
       setDialogOpen(false)
@@ -227,50 +236,59 @@ export function PersonaManager() {
             No personas yet. Create one to customize AI behavior.
           </p>
         )}
-        {personas?.map((persona: Persona) => (
-          <Card key={persona._id}>
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  <CardTitle className="text-base">{persona.name}</CardTitle>
-                  {persona.isDefault && (
-                    <Badge variant="secondary">Default</Badge>
-                  )}
-                  {persona.model && (
-                    <Badge variant="outline" className="text-[10px]">
-                      {MODELS.find((m) => m.id === persona.model)?.name ?? persona.model}
-                    </Badge>
-                  )}
+        {personas?.map((persona: Persona) => {
+          const isGlobal = projectId && !persona.projectId
+          return (
+            <Card key={persona._id} className={isGlobal ? 'border-dashed border-muted-foreground/30 bg-muted/50' : ''}>
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <CardTitle className="text-base">{persona.name}</CardTitle>
+                    {isGlobal && (
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Globe className="h-3 w-3" />
+                        Global
+                      </Badge>
+                    )}
+                    {persona.isDefault && (
+                      <Badge variant="secondary">Default</Badge>
+                    )}
+                    {persona.model && (
+                      <Badge variant="outline" className="text-[10px]">
+                        {MODELS.find((m) => m.id === persona.model)?.name ?? persona.model}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleEdit(persona)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => void handleDelete(persona._id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleEdit(persona)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => void handleDelete(persona._id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              {persona.description && (
-                <CardDescription>{persona.description}</CardDescription>
-              )}
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {persona.systemPrompt}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+                {persona.description && (
+                  <CardDescription>{persona.description}</CardDescription>
+                )}
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {persona.systemPrompt}
+                </p>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
     </div>
   )

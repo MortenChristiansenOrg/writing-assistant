@@ -59,6 +59,30 @@ export const createBatch = mutation({
   },
 })
 
+export const update = mutation({
+  args: {
+    id: v.id('reviewNotes'),
+    comment: v.string(),
+    severity: v.union(
+      v.literal('info'),
+      v.literal('suggestion'),
+      v.literal('warning')
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await auth.getUserId(ctx)
+    if (!userId) throw new Error('Unauthorized')
+
+    const note = await ctx.db.get(args.id)
+    if (!note || note.userId !== userId) throw new Error('Not found')
+
+    await ctx.db.patch(args.id, {
+      comment: args.comment,
+      severity: args.severity,
+    })
+  },
+})
+
 export const dismiss = mutation({
   args: { id: v.id('reviewNotes') },
   handler: async (ctx, args) => {

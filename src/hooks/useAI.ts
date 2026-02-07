@@ -77,7 +77,8 @@ export function useAI(options: UseAIOptions = {}) {
   const runAction = async (
     action: AIAction,
     text: string,
-    persona?: string
+    persona?: string,
+    customPrompt?: string
   ) => {
     if (!settings?.vaultKeyId) {
       const error = new Error('Please add your OpenRouter API key in settings')
@@ -90,15 +91,16 @@ export function useAI(options: UseAIOptions = {}) {
     setCompletion('')
 
     try {
-      await complete(text, {
-        body: {
-          action,
-          text,
-          persona,
-          model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
-          apiKey: settings.vaultKeyId, // In production, this would be decrypted server-side
-        },
-      })
+      const body: Record<string, string | undefined> = {
+        action,
+        text,
+        persona,
+        model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
+        apiKey: settings.vaultKeyId,
+      }
+      if (customPrompt) body.customPrompt = customPrompt
+
+      await complete(text, { body })
     } catch (err) {
       setIsStreaming(false)
       throw err

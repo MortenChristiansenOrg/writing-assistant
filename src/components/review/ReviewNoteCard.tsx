@@ -1,7 +1,7 @@
 import type { Id } from '../../../convex/_generated/dataModel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { User, X, RotateCcw } from 'lucide-react'
+import { User, X, RotateCcw, Wand2, RefreshCw, Loader2 } from 'lucide-react'
 
 interface ReviewNote {
   _id: Id<'reviewNotes'>
@@ -17,6 +17,9 @@ interface ReviewNoteCardProps {
   note: ReviewNote
   onDismiss: (id: Id<'reviewNotes'>) => void
   onUndismiss: (id: Id<'reviewNotes'>) => void
+  onApply?: (comment: string) => void
+  onReReview?: (noteId: Id<'reviewNotes'>) => void
+  isReReviewing?: boolean
 }
 
 const severityColors: Record<string, string> = {
@@ -42,7 +45,7 @@ function timeAgo(ts: number): string {
   return `${days}d ago`
 }
 
-export function ReviewNoteCard({ note, onDismiss, onUndismiss }: ReviewNoteCardProps) {
+export function ReviewNoteCard({ note, onDismiss, onUndismiss, onApply, onReReview, isReReviewing }: ReviewNoteCardProps) {
   return (
     <div
       className={`review-note-card rounded-md border bg-card p-3 ${note.dismissed ? 'dismissed' : ''}`}
@@ -55,14 +58,39 @@ export function ReviewNoteCard({ note, onDismiss, onUndismiss }: ReviewNoteCardP
           <span>&middot;</span>
           <span>{timeAgo(note.createdAt)}</span>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 shrink-0"
-          onClick={() => note.dismissed ? onUndismiss(note._id) : onDismiss(note._id)}
-        >
-          {note.dismissed ? <RotateCcw className="h-3 w-3" /> : <X className="h-3 w-3" />}
-        </Button>
+        <div className="flex shrink-0 gap-0.5">
+          {onApply && !note.dismissed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              title="Apply suggestion"
+              onClick={() => onApply(note.comment)}
+            >
+              <Wand2 className="h-3 w-3" />
+            </Button>
+          )}
+          {onReReview && !note.dismissed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-5 w-5"
+              title="Re-review"
+              disabled={isReReviewing}
+              onClick={() => onReReview(note._id)}
+            >
+              {isReReviewing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5"
+            onClick={() => note.dismissed ? onUndismiss(note._id) : onDismiss(note._id)}
+          >
+            {note.dismissed ? <RotateCcw className="h-3 w-3" /> : <X className="h-3 w-3" />}
+          </Button>
+        </div>
       </div>
       <div className="flex items-center gap-1.5 mb-1.5">
         <Badge

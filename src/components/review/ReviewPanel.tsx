@@ -25,6 +25,9 @@ interface ReviewPanelProps {
   onUndismiss: (id: Id<'reviewNotes'>) => void
   onClearAll: () => void
   onClose: () => void
+  onApplySuggestion?: (comment: string) => void
+  onReReview?: (noteId: Id<'reviewNotes'>) => void
+  reReviewingId?: Id<'reviewNotes'> | null
 }
 
 export function ReviewPanel({
@@ -34,6 +37,9 @@ export function ReviewPanel({
   onUndismiss,
   onClearAll,
   onClose,
+  onApplySuggestion,
+  onReReview,
+  reReviewingId,
 }: ReviewPanelProps) {
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all')
   const [showDismissed, setShowDismissed] = useState(false)
@@ -47,7 +53,7 @@ export function ReviewPanel({
   const activeCount = notes.filter((n) => !n.dismissed).length
 
   return (
-    <div className="review-panel-enter flex h-full w-80 flex-col border-l bg-background">
+    <div className="review-panel-enter flex h-full w-96 flex-col border-l bg-background">
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Review Notes</h2>
@@ -101,7 +107,7 @@ export function ReviewPanel({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-2 p-3">
           {loading && (
             <>
@@ -116,6 +122,8 @@ export function ReviewPanel({
               note={note}
               onDismiss={onDismiss}
               onUndismiss={onUndismiss}
+              {...(onApplySuggestion ? { onApply: onApplySuggestion } : {})}
+              {...(onReReview ? { onReReview, isReReviewing: reReviewingId === note._id } : {})}
             />
           ))}
           {!loading && filtered.length === 0 && (

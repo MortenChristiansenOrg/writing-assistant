@@ -26,6 +26,7 @@ export default defineSchema({
     projectId: v.id('projects'),
     userId: v.id('users'),
     title: v.string(),
+    description: v.optional(v.string()),
     content: v.any(),
     createdAt: v.number(),
     updatedAt: v.number(),

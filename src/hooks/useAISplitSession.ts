@@ -27,7 +27,8 @@ export interface AISplitSession {
     selectedText: string,
     range: { from: number; to: number },
     action: AIAction,
-    fullText: string
+    fullText: string,
+    customPrompt?: string
   ) => void
   acceptChunk: (id: string) => void
   rejectChunk: (id: string) => void
@@ -68,7 +69,8 @@ export function useAISplitSession(): AISplitSession {
       selectedText: string,
       range: { from: number; to: number },
       action: AIAction,
-      fullText: string
+      fullText: string,
+      customPrompt?: string
     ) => {
       setActive(true)
       setBaselineText(selectedText)
@@ -79,7 +81,7 @@ export function useAISplitSession(): AISplitSession {
       setSavePoints([])
       actionRef.current = action
       clear()
-      void runAction(action, selectedText)
+      void runAction(action, selectedText, undefined, customPrompt)
     },
     [clear, runAction]
   )

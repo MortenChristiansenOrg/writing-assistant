@@ -36,6 +36,7 @@ export const create = mutation({
   args: {
     projectId: v.id('projects'),
     title: v.string(),
+    description: v.optional(v.string()),
     content: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
@@ -53,14 +54,16 @@ export const create = mutation({
       content: [{ type: 'paragraph' }],
     }
 
-    return await ctx.db.insert('documents', {
+    const doc: Record<string, unknown> = {
       projectId: args.projectId,
       userId,
       title: args.title,
       content: args.content ?? defaultContent,
       createdAt: now,
       updatedAt: now,
-    })
+    }
+    if (args.description !== undefined) doc.description = args.description
+    return await ctx.db.insert('documents', doc as never)
   },
 })
 
@@ -68,6 +71,7 @@ export const update = mutation({
   args: {
     id: v.id('documents'),
     title: v.optional(v.string()),
+    description: v.optional(v.string()),
     content: v.optional(v.any()),
   },
   handler: async (ctx, args) => {
@@ -81,6 +85,7 @@ export const update = mutation({
 
     await ctx.db.patch(args.id, {
       ...(args.title !== undefined && { title: args.title }),
+      ...(args.description !== undefined && { description: args.description }),
       ...(args.content !== undefined && { content: args.content }),
       updatedAt: Date.now(),
     })
