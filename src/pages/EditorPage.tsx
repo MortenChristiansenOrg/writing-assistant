@@ -213,6 +213,9 @@ export function EditorPage() {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
       }
+      if (descriptionTimeoutRef.current) {
+        clearTimeout(descriptionTimeoutRef.current)
+      }
     }
   }, [])
 
