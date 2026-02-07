@@ -65,7 +65,7 @@ After user pushes, add reactions:
 | Script                    | Purpose               | Args                                      |
 | ------------------------- | --------------------- | ----------------------------------------- |
 | `get-pr-info.sh`          | Get owner/repo/pr     | `[pr_number]`                             |
-| `fetch-review-threads.sh` | Get unresolved threads | `<owner> <repo> <pr>`                     |
+| `fetch-review-threads.sh` | Get review comments    | `<owner> <repo> <pr>`                     |
 | `reply-to-comment.sh`     | Reply to comment      | `<owner> <repo> <pr> <comment_id> <body>` |
 | `add-reaction.sh`         | Add reaction          | `<owner> <repo> <comment_id> <reaction>`  |
 | `resolve-thread.sh`       | Resolve thread        | `<thread_id>`                             |

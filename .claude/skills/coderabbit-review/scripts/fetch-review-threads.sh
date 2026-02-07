@@ -163,10 +163,11 @@ for m in re.finditer(r"<summary>(?:⚠️ Outside diff range comments|🧹 Nitpi
 print(json.dumps(comments))
 ' 2>/dev/null || echo '[]')
 
-# 3. Merge both arrays
-python3 -c "
+# 3. Merge both arrays (pipe via stdin to avoid ARG_MAX)
+printf '%s\n%s' "$THREADS" "$REVIEW_BODY_COMMENTS" | python3 -c "
 import json, sys
-threads = json.loads(sys.argv[1])
-body_comments = json.loads(sys.argv[2])
+lines = sys.stdin.read().split('\n', 1)
+threads = json.loads(lines[0])
+body_comments = json.loads(lines[1])
 print(json.dumps(threads + body_comments, indent=2))
-" "$THREADS" "$REVIEW_BODY_COMMENTS"
+"
