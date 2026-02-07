@@ -1,7 +1,7 @@
 import { httpRouter } from 'convex/server'
 import { httpAction } from './_generated/server'
 import { auth } from './auth'
-import { stream } from './ai'
+import { stream, feedback } from './ai'
 
 const http = httpRouter()
 
@@ -25,6 +25,20 @@ http.route({
   path: '/ai/stream',
   method: 'POST',
   handler: stream,
+})
+
+http.route({
+  path: '/ai/feedback',
+  method: 'OPTIONS',
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: corsHeaders })
+  }),
+})
+
+http.route({
+  path: '/ai/feedback',
+  method: 'POST',
+  handler: feedback,
 })
 
 export default http

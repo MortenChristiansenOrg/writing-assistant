@@ -27,7 +27,8 @@ export interface AISplitSession {
     selectedText: string,
     range: { from: number; to: number },
     action: AIAction,
-    fullText: string
+    fullText: string,
+    customPrompt?: string
   ) => void
   acceptChunk: (id: string) => void
   rejectChunk: (id: string) => void
@@ -51,6 +52,7 @@ export function useAISplitSession(): AISplitSession {
   const [fullDocumentText, setFullDocumentText] = useState('')
 
   const actionRef = useRef<AIAction>('rewrite')
+  const customPromptRef = useRef<string | undefined>(undefined)
 
   const { isLoading, runAction, clear, hasApiKey } = useAI({
     onComplete: (result) => {
@@ -68,7 +70,8 @@ export function useAISplitSession(): AISplitSession {
       selectedText: string,
       range: { from: number; to: number },
       action: AIAction,
-      fullText: string
+      fullText: string,
+      customPrompt?: string
     ) => {
       setActive(true)
       setBaselineText(selectedText)
@@ -78,8 +81,9 @@ export function useAISplitSession(): AISplitSession {
       setChunks([])
       setSavePoints([])
       actionRef.current = action
+      customPromptRef.current = customPrompt
       clear()
-      void runAction(action, selectedText)
+      void runAction(action, selectedText, undefined, customPrompt)
     },
     [clear, runAction]
   )
@@ -127,7 +131,7 @@ export function useAISplitSession(): AISplitSession {
       setChunks([])
       actionRef.current = action
       clear()
-      void runAction(action, merged)
+      void runAction(action, merged, undefined, customPromptRef.current)
     },
     [chunks, clear, runAction]
   )

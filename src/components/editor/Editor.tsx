@@ -111,15 +111,17 @@ export function Editor({
   }
 
   return (
-    <div className={`relative h-full${className ? ` ${className}` : ''}`}>
+    <div className={`flex h-full flex-col${className ? ` ${className}` : ''}`}>
       <BubbleMenu
         editor={editor}
         className="flex gap-1 rounded-lg border bg-popover p-1 shadow-md"
       >
         {onAIAction && <AIBubbleMenu editor={editor} onAction={onAIAction} />}
       </BubbleMenu>
-      <EditorContent editor={editor} className="h-full" />
-      <div className="absolute bottom-2 right-2 text-xs text-muted-foreground">
+      <div className="flex-1 overflow-auto">
+        <EditorContent editor={editor} className="h-full" />
+      </div>
+      <div className="border-t px-4 py-1 text-right text-xs text-muted-foreground">
         {wordCount} words
       </div>
     </div>
