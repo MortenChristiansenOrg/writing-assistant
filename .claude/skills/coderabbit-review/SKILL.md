@@ -23,7 +23,10 @@ Process CodeRabbit review comments on a PR: fetch comments, triage, apply fixes,
 .claude/skills/coderabbit-review/scripts/fetch-review-threads.sh <owner> <repo> <pr>
 ```
 
-Returns JSON array of unresolved CodeRabbit threads with: `threadId`, `commentId`, `path`, `line`, `body`, `isOutdated`.
+Returns JSON array combining two sources:
+
+- **Inline threads** (`source: "thread"`): Unresolved review threads with `threadId`, `commentId`, `path`, `line`, `body`, `isOutdated`
+- **Review-body comments** (`source: "review_body"`): Comments embedded in the review body ("Outside diff range" + "Nitpick" sections) that can't be posted inline. Have `reviewId`, `path`, `line`, `title`, `marker`, `severity`, `body`. These are never resolvable — always triage them.
 
 ### 3. Triage by Priority
 
