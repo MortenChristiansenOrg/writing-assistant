@@ -1,4 +1,11 @@
-export const MODELS = [
+export interface ModelDescriptor {
+  id: string
+  name: string
+  input: number
+  output: number
+}
+
+export const MODELS: ModelDescriptor[] = [
   { id: 'anthropic/claude-opus-4.5', name: 'Claude Opus 4.5', input: 5, output: 25 },
   { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', input: 3, output: 15 },
   { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku', input: 0.8, output: 4 },

@@ -53,7 +53,7 @@ export function EditorPage() {
   // Sync description from server on first load
   useEffect(() => {
     if (document && !descriptionInitialized) {
-      setDescriptionValue((document as { description?: string }).description ?? '')
+      setDescriptionValue(document.description ?? '')
       setDescriptionInitialized(true)
     }
   }, [document, descriptionInitialized])
@@ -155,7 +155,7 @@ export function EditorPage() {
     setReviewOpen(true)
     const opts: { projectDescription?: string; documentDescription?: string; focusArea?: string } = {}
     if (project?.description) opts.projectDescription = project.description
-    const docDesc = (document as { description?: string })?.description
+    const docDesc = document?.description
     if (docDesc) opts.documentDescription = docDesc
     if (focusArea) opts.focusArea = focusArea
     void feedback.requestFeedback(text, persona, opts)
