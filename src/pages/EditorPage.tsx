@@ -53,6 +53,7 @@ export function EditorPage() {
   // Reset description sync flag when document changes
   useEffect(() => {
     setDescriptionInitialized(false)
+    setDescriptionValue('')
   }, [docId])
 
   // Sync description from server on first load

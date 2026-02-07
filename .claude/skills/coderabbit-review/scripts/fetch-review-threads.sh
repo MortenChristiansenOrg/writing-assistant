@@ -65,6 +65,7 @@ THREADS=$(gh api graphql \
 # 2. Fetch review-body comments (outside diff range + nitpick sections)
 # These are embedded in the review body markdown and have no thread/resolved state.
 # We only look at the LATEST CodeRabbit review to avoid duplicates from repeated reviews.
+_review_body_stderr=$(mktemp)
 REVIEW_BODY_COMMENTS=$(gh api "repos/$OWNER/$REPO/pulls/$PR_NUMBER/reviews" --paginate --jq '.' | jq -s 'add' | python3 -c '
 import json, re, sys
 
@@ -161,7 +162,8 @@ for m in re.finditer(r"<summary>(?:⚠️ Outside diff range comments|🧹 Nitpi
             })
 
 print(json.dumps(comments))
-' 2>/dev/null || echo '[]')
+' 2>"$_review_body_stderr" || { echo "Warning: review-body fetch failed:" >&2; cat "$_review_body_stderr" >&2; echo '[]'; })
+rm -f "$_review_body_stderr"
 
 # 3. Merge both arrays (pipe via stdin to avoid ARG_MAX)
 python3 -c "
