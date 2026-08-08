@@ -76,9 +76,14 @@ export const deleteOpenRouterKey = httpAction(async (ctx, request) => {
     return jsonResponse(request, { error: 'Unauthorized' }, 401)
   }
 
-  await ctx.runMutation(internal.userSettings.clearEncryptedOpenRouterKey, {
-    tokenIdentifier: identity.tokenIdentifier,
-  })
+  try {
+    await ctx.runMutation(internal.userSettings.clearEncryptedOpenRouterKey, {
+      tokenIdentifier: identity.tokenIdentifier,
+    })
+  } catch {
+    console.error('Failed to clear OpenRouter credential')
+    return jsonResponse(request, { error: 'Could not remove API key' }, 500)
+  }
   return new Response(null, { status: 204, headers: corsHeaders(request) })
 })
 

@@ -224,7 +224,7 @@ function LoadedEditorPage({
     setReviewOpen(true)
     const opts: { projectDescription?: string; documentDescription?: string; focusArea?: string } = {}
     if (project?.description) opts.projectDescription = project.description
-    const docDesc = document.description
+    const docDesc = descriptionValue
     if (docDesc) opts.documentDescription = docDesc
     if (focusArea) opts.focusArea = focusArea
     void feedback.requestFeedback(text, persona, opts)

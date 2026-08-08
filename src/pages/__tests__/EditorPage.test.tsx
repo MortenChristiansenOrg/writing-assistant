@@ -15,6 +15,7 @@ const {
   project,
   projectId,
   replaceRange,
+  requestFeedback,
   updateDocument,
 } = vi.hoisted(() => {
   const generatedDocumentId = 'document-test' as Id<'documents'>
@@ -26,6 +27,7 @@ const {
     projectId: generatedProjectId,
     finish: vi.fn(() => 'replacement'),
     replaceRange: vi.fn(),
+    requestFeedback: vi.fn(),
     updateDocument: vi.fn(),
     document: {
       _id: generatedDocumentId,
@@ -128,7 +130,23 @@ vi.mock('@/components/review/ReviewPanel', () => ({
   ReviewPanel: () => null,
 }))
 vi.mock('@/components/review/FeedbackRequestPopover', () => ({
-  FeedbackRequestPopover: () => null,
+  FeedbackRequestPopover: ({
+    onRequest,
+  }: {
+    onRequest: (persona: {
+      name: string
+      systemPrompt: string
+    }) => void
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        onRequest({ name: 'Editor', systemPrompt: 'Review carefully' })
+      }
+    >
+      Request feedback
+    </button>
+  ),
 }))
 vi.mock('@/hooks/useSerializedAutosave', () => ({
   useSerializedAutosave: (options: {
@@ -151,7 +169,7 @@ vi.mock('@/hooks/useReviewNotes', () => ({
 }))
 vi.mock('@/hooks/useAIFeedback', () => ({
   useAIFeedback: () => ({
-    requestFeedback: vi.fn(),
+    requestFeedback,
     reReview: vi.fn(),
     loading: false,
     reReviewingId: null,
@@ -257,6 +275,22 @@ describe('EditorPage', () => {
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Failed to save description')
     })
+  })
+
+  it('uses the unsaved description value for feedback', async () => {
+    render(<EditorPage />)
+    fireEvent.change(
+      screen.getByPlaceholderText('Document description (optional)'),
+      { target: { value: 'Current unsaved description' } },
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Request feedback' }))
+
+    expect(requestFeedback).toHaveBeenCalledWith(
+      'original',
+      { name: 'Editor', systemPrompt: 'Review carefully' },
+      { documentDescription: 'Current unsaved description' },
+    )
   })
 
   it('persists the revision before applying the edit', async () => {

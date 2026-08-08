@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { api, internal } from '../../convex/_generated/api'
 import { createAuthenticatedContext, createTestContext } from './setup'
 
@@ -7,6 +7,10 @@ describe('Clerk identity and encrypted settings', () => {
 
   beforeEach(() => {
     t = createTestContext()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('requires an authenticated Clerk identity to create a local user', async () => {
@@ -110,12 +114,27 @@ describe('Clerk identity and encrypted settings', () => {
 
   it('removes the authenticated user credential through the HTTP endpoint', async () => {
     const user = await createAuthenticatedContext(t)
+    const otherUser = await createAuthenticatedContext(t)
     await t.mutation(internal.userSettings.storeEncryptedOpenRouterKey, {
       tokenIdentifier: user.tokenIdentifier,
       ciphertext: 'ciphertext',
       iv: 'iv',
       version: 1,
     })
+
+    const anonymousResponse = await t.fetch('/settings/openrouter-key', {
+      method: 'DELETE',
+    })
+    expect(anonymousResponse.status).toBe(401)
+
+    const otherUserResponse = await otherUser.asUser.fetch(
+      '/settings/openrouter-key',
+      { method: 'DELETE' },
+    )
+    expect(otherUserResponse.status).toBe(204)
+    expect(
+      (await user.asUser.query(api.userSettings.get, {}))?.hasOpenRouterKey,
+    ).toBe(true)
 
     const response = await user.asUser.fetch('/settings/openrouter-key', {
       method: 'DELETE',
@@ -125,5 +144,24 @@ describe('Clerk identity and encrypted settings', () => {
     expect(
       (await user.asUser.query(api.userSettings.get, {}))?.hasOpenRouterKey,
     ).toBe(false)
+  })
+
+  it('returns a defined error when the Clerk identity has no local user', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const identityWithoutUser = t.withIdentity({
+      issuer: 'https://clerk.test',
+      subject: 'missing-user',
+      tokenIdentifier: 'https://clerk.test|missing-user',
+    })
+
+    const response = await identityWithoutUser.fetch(
+      '/settings/openrouter-key',
+      { method: 'DELETE' },
+    )
+
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({
+      error: 'Could not remove API key',
+    })
   })
 })

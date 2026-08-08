@@ -62,6 +62,40 @@ describe('useAIFeedback', () => {
     )
   })
 
+  it('authenticates and stores validated initial feedback', async () => {
+    const notes = [
+      {
+        comment: 'Clarify the opening',
+        severity: 'suggestion' as const,
+        category: 'clarity',
+      },
+    ]
+    const request = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(Response.json(notes))
+    const documentId = 'document-test' as Id<'documents'>
+    const { result } = renderHook(() => useAIFeedback(documentId))
+
+    await act(async () => {
+      await result.current.requestFeedback('Draft text', {
+        name: 'Editor',
+        systemPrompt: 'Review it',
+      })
+    })
+
+    expect(mockGetToken).toHaveBeenCalledOnce()
+    const requestInit = request.mock.calls[0]?.[1]
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe(
+      'Bearer test-token',
+    )
+    expect(createBatch).toHaveBeenCalledWith({
+      documentId,
+      personaName: 'Editor',
+      model: 'test/model',
+      notes,
+    })
+  })
+
   it('preserves the returned category when re-reviewing a note', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       Response.json([
