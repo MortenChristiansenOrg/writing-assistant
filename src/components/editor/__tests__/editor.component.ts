@@ -27,8 +27,12 @@ export class EditorComponent {
     return match?.[1] ? parseInt(match[1], 10) : 0
   }
 
-  hasPlaceholder(_text: string) {
-    return document.querySelector('.is-empty.is-editor-empty') !== null
+  hasPlaceholder(text: string): boolean {
+    return (
+      document
+        .querySelector('.is-empty.is-editor-empty')
+        ?.getAttribute('data-placeholder') === text
+    )
   }
 
   async typeText(text: string) {

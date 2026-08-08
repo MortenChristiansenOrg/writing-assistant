@@ -1,11 +1,11 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { auth } from './auth'
+import { getCurrentUserId } from './model/auth'
 
 export const list = query({
   args: { documentId: v.id('documents') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
     return await ctx.db
@@ -37,7 +37,7 @@ export const createBatch = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const doc = await ctx.db.get(args.documentId)
@@ -72,7 +72,7 @@ export const update = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const note = await ctx.db.get(args.id)
@@ -88,7 +88,7 @@ export const update = mutation({
 export const dismiss = mutation({
   args: { id: v.id('reviewNotes') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const note = await ctx.db.get(args.id)
@@ -101,7 +101,7 @@ export const dismiss = mutation({
 export const undismiss = mutation({
   args: { id: v.id('reviewNotes') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const note = await ctx.db.get(args.id)
@@ -114,7 +114,7 @@ export const undismiss = mutation({
 export const deleteForDocument = mutation({
   args: { documentId: v.id('documents') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const notes = await ctx.db

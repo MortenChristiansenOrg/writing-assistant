@@ -1,29 +1,6 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
-import { auth } from './auth'
-
-const MODEL_COSTS: Record<string, { input: number; output: number }> = {
-  'anthropic/claude-3.5-sonnet': { input: 3, output: 15 },
-  'anthropic/claude-3-haiku': { input: 0.25, output: 1.25 },
-  'openai/gpt-4o': { input: 2.5, output: 10 },
-  'openai/gpt-4o-mini': { input: 0.15, output: 0.6 },
-  'google/gemini-2.0-flash': { input: 0.1, output: 0.4 },
-  'meta-llama/llama-3.1-70b-instruct': { input: 0.88, output: 0.88 },
-  'meta-llama/llama-3.1-8b-instruct': { input: 0.055, output: 0.055 },
-  'mistralai/mistral-large-2411': { input: 2, output: 6 },
-}
-
-function calculateCost(
-  model: string,
-  inputTokens: number,
-  outputTokens: number
-): number {
-  const costs = MODEL_COSTS[model] ?? { input: 1, output: 3 }
-  return (
-    (inputTokens / 1_000_000) * costs.input +
-    (outputTokens / 1_000_000) * costs.output
-  )
-}
+import { internalMutation, query } from './_generated/server'
+import { getCurrentUserId } from './model/auth'
 
 function getDateString(date: Date = new Date()): string {
   return date.toISOString().split('T')[0] ?? ''
@@ -32,7 +9,7 @@ function getDateString(date: Date = new Date()): string {
 export const getToday = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return null
 
     const today = getDateString()
@@ -62,7 +39,7 @@ export const getRange = query({
     endDate: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
     const sessions = await ctx.db
@@ -101,22 +78,26 @@ export const getRange = query({
   },
 })
 
-export const record = mutation({
+export const recordUsage = internalMutation({
   args: {
+    tokenIdentifier: v.string(),
     model: v.string(),
     inputTokens: v.number(),
     outputTokens: v.number(),
+    totalCost: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
-    if (!userId) throw new Error('Unauthorized')
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_token', (queryBuilder) =>
+        queryBuilder.eq('tokenIdentifier', args.tokenIdentifier),
+      )
+      .unique()
+    if (!user) throw new Error('Unauthorized')
+    const userId = user._id
 
     const today = getDateString()
-    const totalCost = calculateCost(
-      args.model,
-      args.inputTokens,
-      args.outputTokens
-    )
+    const totalCost = Math.max(0, args.totalCost)
 
     const existing = await ctx.db
       .query('spendingSessions')

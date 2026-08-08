@@ -1,11 +1,11 @@
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { Editor } from '@/components/editor/Editor'
 import { AISplitView } from '@/components/editor/AISplitView'
 import type { DocumentContent, EditorAdapter } from '@/lib/editor'
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import type { AIAction } from '@/hooks/useAI'
 import { useAISplitSession } from '@/hooks/useAISplitSession'
@@ -17,6 +17,7 @@ import { FeedbackRequestPopover } from '@/components/review/FeedbackRequestPopov
 import { MessageSquareText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useSerializedAutosave } from '@/hooks/useSerializedAutosave'
 
 const AUTOSAVE_DELAY = 500
 
@@ -30,77 +31,128 @@ export function EditorPage() {
     api.projects.get,
     projectId ? { id: projectId as Id<'projects'> } : 'skip'
   )
+  if (!docId) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">No document selected</p>
+      </div>
+    )
+  }
+
+  if (document === undefined) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (document === null) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <p className="text-muted-foreground">Document not found</p>
+      </div>
+    )
+  }
+
+  if (document._id !== docId) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  return (
+    <LoadedEditorPage
+      key={docId}
+      docId={docId as Id<'documents'>}
+      projectId={projectId as Id<'projects'> | undefined}
+      document={document}
+      project={project?._id === projectId ? project : undefined}
+    />
+  )
+}
+
+interface LoadedEditorPageProps {
+  docId: Id<'documents'>
+  projectId: Id<'projects'> | undefined
+  document: Doc<'documents'>
+  project: Doc<'projects'> | null | undefined
+}
+
+function LoadedEditorPage({
+  docId,
+  projectId,
+  document,
+  project,
+}: LoadedEditorPageProps) {
   const personas = useQuery(
     api.personas.listForProject,
-    projectId ? { projectId: projectId as Id<'projects'> } : 'skip'
+    projectId ? { projectId } : 'skip'
   )
   const updateDocument = useMutation(api.documents.update)
   const createRevision = useMutation(api.revisions.create)
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pendingContentRef = useRef<DocumentContent | null>(null)
   const editorAdapterRef = useRef<EditorAdapter | null>(null)
 
   const [lastAction, setLastAction] = useState<AIAction>('rewrite')
   const [reviewOpen, setReviewOpen] = useState(false)
-  const [descriptionValue, setDescriptionValue] = useState('')
-  const [descriptionInitialized, setDescriptionInitialized] = useState(false)
-  const descriptionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [descriptionValue, setDescriptionValue] = useState(
+    () => document.description ?? ''
+  )
 
   const session = useAISplitSession()
-  const review = useReviewNotes(docId as Id<'documents'> | undefined)
-  const feedback = useAIFeedback(docId as Id<'documents'> | undefined)
+  const review = useReviewNotes(docId)
+  const feedback = useAIFeedback(docId)
 
-  // Reset description sync flag when document changes
-  useEffect(() => {
-    setDescriptionInitialized(false)
-    setDescriptionValue('')
-  }, [docId])
+  const contentAutosave = useSerializedAutosave<{
+    id: Id<'documents'>
+    content: Record<string, unknown> | string
+  }>({
+    delay: AUTOSAVE_DELAY,
+    save: async (value) => {
+      await updateDocument(value)
+    },
+    onError: (error) => {
+      toast.error('Failed to save')
+      console.error(error)
+    },
+  })
 
-  // Sync description from server on first load
-  useEffect(() => {
-    if (document && !descriptionInitialized) {
-      setDescriptionValue(document.description ?? '')
-      setDescriptionInitialized(true)
-    }
-  }, [document, descriptionInitialized])
+  const descriptionAutosave = useSerializedAutosave<{
+    id: Id<'documents'>
+    description: string
+  }>({
+    delay: AUTOSAVE_DELAY,
+    save: async (value) => {
+      await updateDocument(value)
+    },
+    onError: (error) => {
+      toast.error('Failed to save description')
+      console.error(error)
+    },
+  })
 
-  const handleDescriptionChange = useCallback((value: string) => {
-    setDescriptionValue(value)
-    if (descriptionTimeoutRef.current) clearTimeout(descriptionTimeoutRef.current)
-    descriptionTimeoutRef.current = setTimeout(() => {
-      if (docId) {
-        updateDocument({ id: docId as Id<'documents'>, description: value }).catch(console.error)
-      }
-    }, AUTOSAVE_DELAY)
-  }, [docId, updateDocument])
+  const handleDescriptionChange = useCallback(
+    (value: string) => {
+      setDescriptionValue(value)
+      descriptionAutosave.schedule({ id: docId, description: value })
+    },
+    [descriptionAutosave, docId]
+  )
 
-  const handleContentChange = (content: DocumentContent) => {
-    if (!docId) return
+  const handleContentChange = useCallback(
+    (content: DocumentContent) => {
+      contentAutosave.schedule({ id: docId, content: content.data })
+    },
+    [contentAutosave, docId]
+  )
 
-    pendingContentRef.current = content
+  const handleAdapterReady = useCallback((adapter: EditorAdapter) => {
+    editorAdapterRef.current = adapter
+  }, [])
 
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current)
-    }
-
-    saveTimeoutRef.current = setTimeout(() => {
-      if (pendingContentRef.current) {
-        updateDocument({
-          id: docId as Id<'documents'>,
-          content: pendingContentRef.current.data,
-        })
-          .then(() => {
-            pendingContentRef.current = null
-          })
-          .catch((err) => {
-            toast.error('Failed to save')
-            console.error(err)
-          })
-      }
-    }, AUTOSAVE_DELAY)
-  }
-
-  const handleAIAction = (action: AIAction, _selectedText: string) => {
+  const handleAIAction = (action: AIAction) => {
     if (!session.hasApiKey) {
       toast.error('Please add your OpenRouter API key in settings')
       return
@@ -115,6 +167,7 @@ export function EditorPage() {
     session.enterSplitMode(
       range.text,
       { from: range.from, to: range.to },
+      { from: range.editorFrom, to: range.editorTo },
       action,
       range.fullText
     )
@@ -122,11 +175,11 @@ export function EditorPage() {
 
   const handleFinish = () => {
     const adapter = editorAdapterRef.current
-    const range = session.selectionRange
+    const range = session.documentRange
     if (!adapter || !range || !docId) return
 
     const mergedText = session.finish()
-    if (!mergedText) return
+    if (mergedText === null) return
 
     // Create revision before replacing
     const currentContent = adapter.getContent()
@@ -137,11 +190,7 @@ export function EditorPage() {
       description: `AI rewrite`,
     })
 
-    // Build full markdown with merged selection replacing original range
-    const fullMd = session.fullDocumentText
-    const before = fullMd.slice(0, range.from)
-    const after = fullMd.slice(range.to)
-    adapter.setMarkdownContent(before + mergedText + after)
+    adapter.replaceRange(range.from, range.to, mergedText)
     toast.success('AI edits applied')
   }
 
@@ -183,6 +232,7 @@ export function EditorPage() {
     session.enterSplitMode(
       fullText,
       { from: 0, to: fullText.length },
+      adapter.getDocumentRange(),
       'rewrite',
       fullText,
       `Apply this editorial suggestion to the text:\n\n${comment}`
@@ -218,41 +268,6 @@ export function EditorPage() {
     )
   }
 
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-      if (descriptionTimeoutRef.current) {
-        clearTimeout(descriptionTimeoutRef.current)
-      }
-    }
-  }, [])
-
-  if (!docId) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">No document selected</p>
-      </div>
-    )
-  }
-
-  if (document === undefined) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    )
-  }
-
-  if (document === null) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-muted-foreground">Document not found</p>
-      </div>
-    )
-  }
-
   const initialContent: DocumentContent = {
     type: 'json',
     data: document.content as Record<string, unknown>,
@@ -274,7 +289,7 @@ export function EditorPage() {
             <Button
               variant={reviewOpen ? 'secondary' : 'ghost'}
               size="sm"
-              onClick={() => setReviewOpen(!reviewOpen)}
+              onClick={() => setReviewOpen((open) => !open)}
             >
               <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
               Review
@@ -328,11 +343,11 @@ export function EditorPage() {
             style={{ display: session.active ? 'none' : undefined }}
           >
             <Editor
+              key={docId}
               content={initialContent}
+              contentKey={docId}
               onChange={handleContentChange}
-              onAdapterReady={(adapter) => {
-                editorAdapterRef.current = adapter
-              }}
+              onAdapterReady={handleAdapterReady}
               onAIAction={handleAIAction}
             />
           </div>

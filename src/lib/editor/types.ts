@@ -4,6 +4,17 @@ export interface Selection {
   to: number
 }
 
+export interface TextSelectionContext {
+  /** Plain-text offsets used to place the selection in the split-view preview. */
+  from: number
+  to: number
+  text: string
+  fullText: string
+  /** ProseMirror positions captured when the AI session starts. */
+  editorFrom: number
+  editorTo: number
+}
+
 export type DocumentContent =
   | {
       type: 'json'
@@ -29,12 +40,8 @@ export interface EditorAdapter {
   getMarkdown(): string
   getSelectedMarkdown(): string | null
   getTextInRange(from: number, to: number): string
-  getTextOffsetRange(): {
-    from: number
-    to: number
-    text: string
-    fullText: string
-  } | null
+  getTextOffsetRange(): TextSelectionContext | null
+  getDocumentRange(): { from: number; to: number }
   replaceRange(from: number, to: number, content: string): void
   setMarkdownContent(markdown: string): void
   destroy(): void

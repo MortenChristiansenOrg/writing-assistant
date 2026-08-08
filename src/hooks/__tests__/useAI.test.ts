@@ -1,6 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { useAI } from '../useAI'
+
+const { mockGetToken } = vi.hoisted(() => ({
+  mockGetToken: vi.fn(),
+}))
 
 // Mock modules
 vi.mock('@ai-sdk/react', () => ({
@@ -9,7 +13,10 @@ vi.mock('@ai-sdk/react', () => ({
 
 vi.mock('convex/react', () => ({
   useQuery: vi.fn(),
-  useMutation: vi.fn(),
+}))
+
+vi.mock('@clerk/react', () => ({
+  useAuth: vi.fn(() => ({ getToken: mockGetToken })),
 }))
 
 vi.mock('sonner', () => ({
@@ -23,25 +30,22 @@ vi.mock('@/lib/convex-url', () => ({
 }))
 
 import { useCompletion } from '@ai-sdk/react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery } from 'convex/react'
 import { toast } from 'sonner'
 
 describe('useAI', () => {
   const mockComplete = vi.fn()
   const mockStop = vi.fn()
   const mockSetCompletion = vi.fn()
-  const mockRecordSpending = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockGetToken.mockResolvedValue('token')
 
     ;(useQuery as ReturnType<typeof vi.fn>).mockReturnValue({
-      vaultKeyId: 'test-key',
+      hasOpenRouterKey: true,
       defaultModel: 'anthropic/claude-3.5-sonnet',
     })
-
-    ;(useMutation as ReturnType<typeof vi.fn>).mockReturnValue(mockRecordSpending)
-    mockRecordSpending.mockResolvedValue(undefined)
 
     ;(useCompletion as ReturnType<typeof vi.fn>).mockImplementation((options) => {
       return {
@@ -54,6 +58,32 @@ describe('useAI', () => {
         _options: options, // Expose for testing callbacks
       }
     })
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('authenticates HTTP requests with the Clerk session token', async () => {
+    const request = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('ok'))
+
+    renderHook(() => useAI())
+    const options = (useCompletion as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as {
+      fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    }
+
+    await options.fetch('https://test.convex.site/ai/stream', {
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    expect(mockGetToken).toHaveBeenCalledWith()
+    expect(request).toHaveBeenCalledOnce()
+    const requestInit = request.mock.calls[0]?.[1]
+    expect(new Headers(requestInit?.headers).get('Authorization')).toBe(
+      'Bearer token',
+    )
   })
 
   describe('runAction', () => {
@@ -72,7 +102,6 @@ describe('useAI', () => {
           text: 'test text',
           persona: undefined,
           model: 'anthropic/claude-3.5-sonnet',
-          apiKey: 'test-key',
         },
       })
     })
@@ -95,7 +124,7 @@ describe('useAI', () => {
 
     it('shows error toast when no API key', async () => {
       ;(useQuery as ReturnType<typeof vi.fn>).mockReturnValue({
-        vaultKeyId: null,
+        hasOpenRouterKey: false,
         defaultModel: 'anthropic/claude-3.5-sonnet',
       })
 
@@ -140,7 +169,7 @@ describe('useAI', () => {
   })
 
   describe('onFinish callback', () => {
-    it('records spending after completion', async () => {
+    it('does not send client-reported spending after completion', async () => {
       let onFinishCallback: ((prompt: string, result: string) => void) | undefined
 
       ;(useCompletion as ReturnType<typeof vi.fn>).mockImplementation((options) => {
@@ -161,13 +190,8 @@ describe('useAI', () => {
         onFinishCallback?.('prompt', 'completed result text')
       })
 
-      await waitFor(() => {
-        expect(mockRecordSpending).toHaveBeenCalledWith({
-          model: 'anthropic/claude-3.5-sonnet',
-          inputTokens: expect.any(Number),
-          outputTokens: expect.any(Number),
-        })
-      })
+      await waitFor(() => expect(onFinishCallback).toBeDefined())
+      expect(onFinishCallback).toBeDefined()
     })
 
     it('calls onComplete option callback', () => {
@@ -268,8 +292,8 @@ describe('useAI', () => {
     })
   })
 
-  describe('token estimation', () => {
-    it('estimates tokens based on result length', async () => {
+  describe('server-side usage accounting', () => {
+    it('does not estimate tokens in the browser', async () => {
       let onFinishCallback: ((prompt: string, result: string) => void) | undefined
 
       ;(useCompletion as ReturnType<typeof vi.fn>).mockImplementation((options) => {
@@ -292,13 +316,8 @@ describe('useAI', () => {
         onFinishCallback?.('prompt', result)
       })
 
-      await waitFor(() => {
-        expect(mockRecordSpending).toHaveBeenCalledWith({
-          model: 'anthropic/claude-3.5-sonnet',
-          inputTokens: 25,
-          outputTokens: 25,
-        })
-      })
+      await waitFor(() => expect(onFinishCallback).toBeDefined())
+      expect(mockSetCompletion).not.toHaveBeenCalledWith(expect.stringContaining('tokens'))
     })
   })
 })

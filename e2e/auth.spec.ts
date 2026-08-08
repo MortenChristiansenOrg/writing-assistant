@@ -9,7 +9,7 @@ test.describe('Authentication', () => {
     // Verify login page elements are visible
     await expect(loginPage.title).toBeVisible()
     await expect(loginPage.description).toBeVisible()
-    await expect(loginPage.githubButton).toBeVisible()
+    await expect(loginPage.signInButton).toBeVisible()
     await expect(loginPage.card).toBeVisible()
   })
 
@@ -21,12 +21,11 @@ test.describe('Authentication', () => {
     await expect(loginPage.description).toHaveText('AI-powered prose writing and editing')
   })
 
-  test('github sign in button is clickable', async ({ page }) => {
+  test('Clerk sign in button is clickable', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
 
-    await expect(loginPage.githubButton).toBeEnabled()
-    // Note: actual OAuth flow requires auth setup, just verify button works
+    await expect(loginPage.signInButton).toBeEnabled()
   })
 
   test('unauthenticated user cannot access /app', async ({ page }) => {

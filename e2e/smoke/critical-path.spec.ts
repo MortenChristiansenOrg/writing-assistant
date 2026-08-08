@@ -22,10 +22,10 @@ test.describe('Critical Path Smoke Tests', () => {
 
     // Core elements present
     await expect(loginPage.title).toBeVisible()
-    await expect(loginPage.githubButton).toBeVisible()
+    await expect(loginPage.signInButton).toBeVisible()
 
     // Button is interactive
-    await expect(loginPage.githubButton).toBeEnabled()
+    await expect(loginPage.signInButton).toBeEnabled()
   })
 
   test('navigation to /app shows login for unauthenticated user', async ({ page }) => {
@@ -61,14 +61,14 @@ test.describe('Critical Path Smoke Tests', () => {
 
     // Test mobile viewport
     await page.setViewportSize({ width: 375, height: 667 })
-    await expect(loginPage.githubButton).toBeVisible()
+    await expect(loginPage.signInButton).toBeVisible()
 
     // Test tablet viewport
     await page.setViewportSize({ width: 768, height: 1024 })
-    await expect(loginPage.githubButton).toBeVisible()
+    await expect(loginPage.signInButton).toBeVisible()
 
     // Test desktop viewport
     await page.setViewportSize({ width: 1280, height: 720 })
-    await expect(loginPage.githubButton).toBeVisible()
+    await expect(loginPage.signInButton).toBeVisible()
   })
 })

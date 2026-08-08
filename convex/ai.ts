@@ -1,207 +1,271 @@
-import { httpAction } from './_generated/server'
-import { createOpenAI } from '@ai-sdk/openai'
-import { streamText, generateText } from 'ai'
+import { createOpenRouter } from '@openrouter/ai-sdk-provider'
+import {
+  generateText,
+  Output,
+  streamText,
+  type LanguageModelUsage,
+  type ProviderMetadata,
+} from 'ai'
+import { z } from 'zod'
+import { internal } from './_generated/api'
+import { httpAction, type ActionCtx } from './_generated/server'
+import { getOpenRouterApiKey } from './credentials'
+import { corsHeaders, isAllowedOrigin, jsonResponse } from './httpUtils'
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-}
+const actionSchema = z.enum([
+  'rewrite',
+  'shorter',
+  'longer',
+  'formal',
+  'casual',
+  'fix_grammar',
+])
 
-const ACTION_PROMPTS: Record<string, string> = {
+const modelSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(160)
+  .regex(/^[a-zA-Z0-9._:/-]+$/)
+
+const streamInput = z.object({
+  action: actionSchema,
+  text: z.string().min(1).max(100_000),
+  persona: z.string().max(20_000).optional(),
+  model: modelSchema.optional(),
+  customPrompt: z.string().min(1).max(10_000).optional(),
+})
+
+const feedbackInput = z.object({
+  text: z.string().max(100_000),
+  persona: z.string().max(20_000).optional(),
+  model: modelSchema.optional(),
+  projectDescription: z.string().max(10_000).optional(),
+  documentDescription: z.string().max(10_000).optional(),
+  focusArea: z.string().max(5_000).optional(),
+})
+
+const feedbackNote = z.object({
+  comment: z.string().min(1).max(4_000),
+  severity: z.enum(['info', 'suggestion', 'warning']),
+  category: z.string().min(1).max(100).optional(),
+})
+
+const ACTION_PROMPTS: Record<z.infer<typeof actionSchema>, string> = {
   rewrite:
     'Rewrite the following text while preserving its meaning. Make it clearer and more engaging.',
   shorter:
     'Make the following text more concise. Remove unnecessary words while preserving the core meaning.',
   longer:
     'Expand the following text with more detail and explanation while maintaining the same tone.',
-  formal:
-    'Rewrite the following text in a more formal, professional tone.',
+  formal: 'Rewrite the following text in a more formal, professional tone.',
   casual:
     'Rewrite the following text in a more casual, conversational tone.',
   fix_grammar:
-    'Fix any grammar, spelling, or punctuation errors in the following text. Only make corrections, do not change the style or meaning.',
+    'Fix any grammar, spelling, or punctuation errors in the following text. Only make corrections; do not change the style or meaning.',
 }
 
-export const stream = httpAction(async (_ctx, request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
+const FEEDBACK_INSTRUCTIONS = `You are a literary editor reviewing a piece of writing. Provide specific, actionable feedback. Aim for 3-8 notes depending on text length. Each note has a short comment, a severity, and optionally a concise category such as pacing, dialogue, clarity, tone, structure, character, or consistency.`
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+export function openRouterCost(
+  metadata: ProviderMetadata | undefined,
+): number {
+  const provider = metadata?.openrouter
+  if (!isRecord(provider) || !isRecord(provider.usage)) return 0
+  if (typeof provider.usage.cost === 'number') {
+    return Math.max(0, provider.usage.cost)
   }
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
+  const costDetails = provider.usage.costDetails
+  if (
+    isRecord(costDetails) &&
+    typeof costDetails.upstreamInferenceCost === 'number'
+  ) {
+    return Math.max(0, costDetails.upstreamInferenceCost)
   }
+  return 0
+}
+
+async function recordUsage(
+  ctx: ActionCtx,
+  tokenIdentifier: string,
+  model: string,
+  usage: LanguageModelUsage,
+  metadata: ProviderMetadata | undefined,
+): Promise<void> {
+  await ctx.runMutation(internal.spending.recordUsage, {
+    tokenIdentifier,
+    model,
+    inputTokens: usage.inputTokens ?? 0,
+    outputTokens: usage.outputTokens ?? 0,
+    totalCost: openRouterCost(metadata),
+  })
+}
+
+async function authenticate(ctx: ActionCtx, request: Request) {
+  if (!isAllowedOrigin(request)) {
+    return { response: jsonResponse(request, { error: 'Origin not allowed' }, 403) }
+  }
+
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity) {
+    return { response: jsonResponse(request, { error: 'Unauthorized' }, 401) }
+  }
+
+  const apiKey = await getOpenRouterApiKey(ctx, identity.tokenIdentifier)
+  if (!apiKey) {
+    return {
+      response: jsonResponse(
+        request,
+        { error: 'Configure an OpenRouter API key in settings' },
+        409,
+      ),
+    }
+  }
+
+  return { identity, apiKey }
+}
+
+export const stream = httpAction(async (ctx, request) => {
+  const authentication = await authenticate(ctx, request)
+  if ('response' in authentication) return authentication.response
+
+  const parsed = streamInput.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return jsonResponse(request, { error: 'Invalid request' }, 400)
+  }
+
+  const { action, text, persona, model, customPrompt } = parsed.data
+  const selectedModel = model ?? 'anthropic/claude-sonnet-5'
+  const actionPrompt = customPrompt ?? ACTION_PROMPTS[action]
+  const instructions = persona
+    ? `${persona}\n\n${actionPrompt}`
+    : actionPrompt
+  const inputTokenEstimate = Math.ceil(text.length / 4)
+  const outputMultiplier = action === 'longer' ? 3 : action === 'shorter' ? 0.75 : 1.5
+  const maxOutputTokens = Math.max(
+    256,
+    Math.min(4096, Math.ceil(inputTokenEstimate * outputMultiplier)),
+  )
 
   try {
-    let body: unknown
-    try {
-      body = await request.json()
-    } catch {
-      return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
-    }
-    const { action, text, persona, model, apiKey, customPrompt } = body as {
-      action: string
-      text: string
-      persona?: string
-      model?: string
-      apiKey: string
-      customPrompt?: string
-    }
-
-    if (!action || !text || !apiKey) {
-      return new Response('Missing required fields', { status: 400, headers: corsHeaders })
-    }
-
-    const actionPrompt = customPrompt ?? ACTION_PROMPTS[action]
-    if (!actionPrompt) {
-      return new Response('Invalid action', { status: 400, headers: corsHeaders })
-    }
-
-    const openrouter = createOpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey,
-    })
-
-    const selectedModel = model ?? 'anthropic/claude-sonnet-4'
-
-    const systemPrompt = persona
-      ? `${persona}\n\n${actionPrompt}`
-      : actionPrompt
-
-    // Estimate input tokens (~4 chars per token), scale output by action type
-    const inputTokenEstimate = Math.ceil(text.length / 4)
-    const outputMultiplier = action === 'longer' ? 3 : action === 'shorter' ? 0.75 : 1.5
-    const maxTokens = Math.max(256, Math.min(4096, Math.ceil(inputTokenEstimate * outputMultiplier)))
-
+    const openrouter = createOpenRouter({ apiKey: authentication.apiKey })
     const result = streamText({
-      model: openrouter(selectedModel),
-      system: systemPrompt,
+      model: openrouter(selectedModel, { usage: { include: true } }),
+      instructions,
       prompt: text,
-      maxOutputTokens: maxTokens,
+      maxOutputTokens,
     })
-
     const encoder = new TextEncoder()
-    const stream = new ReadableStream({
+    const responseStream = new ReadableStream({
       async start(controller) {
         let hasContent = false
+        let streamError: string | undefined
         try {
-          for await (const part of result.fullStream) {
+          for await (const part of result.stream) {
             if (part.type === 'text-delta') {
               controller.enqueue(encoder.encode(part.text))
               hasContent = true
             } else if (part.type === 'error') {
-              const err = part.error
-              const msg = err instanceof Error ? err.message : String(err)
-              controller.enqueue(encoder.encode(`__AI_ERROR__:${msg}`))
-              controller.close()
-              return
+              streamError = 'The AI provider rejected the request'
+              break
             }
           }
-          if (!hasContent) {
-            controller.enqueue(encoder.encode(`__AI_ERROR__:No response from AI`))
-          }
-          controller.close()
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'AI request failed'
-          controller.enqueue(encoder.encode(`__AI_ERROR__:${msg}`))
-          controller.close()
+        } catch {
+          streamError = 'AI request failed'
         }
+
+        if (streamError) {
+          controller.enqueue(encoder.encode(`__AI_ERROR__:${streamError}`))
+        } else if (!hasContent) {
+          controller.enqueue(encoder.encode('__AI_ERROR__:No response from AI'))
+        }
+
+        try {
+          const [usage, finalStep] = await Promise.all([
+            result.usage,
+            result.finalStep,
+          ])
+          await recordUsage(
+            ctx,
+            authentication.identity.tokenIdentifier,
+            selectedModel,
+            usage,
+            finalStep.providerMetadata,
+          )
+        } catch {
+          console.error('Failed to record AI usage')
+        }
+
+        controller.close()
       },
     })
-    return new Response(stream, {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8', ...corsHeaders },
+
+    return new Response(responseStream, {
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        ...corsHeaders(request),
+      },
     })
-  } catch (error) {
-    console.error('AI stream error:', error)
-    return new Response('Internal server error', { status: 500, headers: corsHeaders })
+  } catch {
+    return jsonResponse(request, { error: 'AI request failed' }, 502)
   }
 })
 
-const FEEDBACK_SYSTEM = `You are a literary editor reviewing a piece of writing. Provide editorial feedback as a JSON array. Each item must have:
-- "comment": a specific, actionable note (1-3 sentences)
-- "severity": one of "info", "suggestion", or "warning"
-- "category": optional tag like "pacing", "dialog", "clarity", "tone", "structure", "character", "consistency"
+export const feedback = httpAction(async (ctx, request) => {
+  const authentication = await authenticate(ctx, request)
+  if ('response' in authentication) return authentication.response
 
-Return ONLY a valid JSON array, no markdown fencing or other text. Aim for 3-8 notes depending on text length.`
+  const parsed = feedbackInput.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return jsonResponse(request, { error: 'Invalid request' }, 400)
+  }
 
-export const feedback = httpAction(async (_ctx, request) => {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders })
-  }
-  if (request.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: corsHeaders })
-  }
+  const {
+    text,
+    persona,
+    model,
+    projectDescription,
+    documentDescription,
+    focusArea,
+  } = parsed.data
+  const selectedModel = model ?? 'anthropic/claude-sonnet-5'
+  const instructions = persona
+    ? `${persona}\n\n${FEEDBACK_INSTRUCTIONS}`
+    : FEEDBACK_INSTRUCTIONS
+  const context = [
+    projectDescription && `Project context: ${projectDescription}`,
+    documentDescription && `Document description: ${documentDescription}`,
+    focusArea && `Focus area: ${focusArea}`,
+    text || '(No text written yet; review the supplied context.)',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
 
   try {
-    let body: unknown
-    try {
-      body = await request.json()
-    } catch {
-      return new Response('Invalid JSON', { status: 400, headers: corsHeaders })
-    }
-    const { text, persona, model, apiKey, projectDescription, documentDescription, focusArea } = body as {
-      text: string
-      persona?: string
-      model?: string
-      apiKey: string
-      projectDescription?: string
-      documentDescription?: string
-      focusArea?: string
-    }
-
-    if (text == null || !apiKey) {
-      return new Response('Missing required fields', { status: 400, headers: corsHeaders })
-    }
-
-    const openrouter = createOpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey,
-    })
-
-    const selectedModel = model ?? 'anthropic/claude-sonnet-4'
-    const systemPrompt = persona
-      ? `${persona}\n\n${FEEDBACK_SYSTEM}`
-      : FEEDBACK_SYSTEM
-
-    let prompt = ''
-    if (projectDescription) prompt += `Project context: ${projectDescription}\n\n`
-    if (documentDescription) prompt += `Document description: ${documentDescription}\n\n`
-    if (focusArea) prompt += `Focus area: The reviewer specifically asked you to focus on: ${focusArea}\n\n`
-    if (text) prompt += text
-    else prompt += '(No text written yet — provide feedback based on the context and focus area above.)'
-
+    const openrouter = createOpenRouter({ apiKey: authentication.apiKey })
     const result = await generateText({
-      model: openrouter(selectedModel),
-      system: systemPrompt,
-      prompt,
+      model: openrouter(selectedModel, {
+        usage: { include: true },
+        plugins: [{ id: 'response-healing' }],
+      }),
+      instructions,
+      prompt: context,
       maxOutputTokens: 2048,
+      output: Output.array({ element: feedbackNote }),
     })
-
-    // Validate JSON array
-    let notes: unknown
-    try {
-      notes = JSON.parse(result.text)
-      if (!Array.isArray(notes)) throw new Error('Not an array')
-      for (const note of notes) {
-        if (typeof note !== 'object' || note === null) throw new Error('Invalid note')
-        if (typeof (note as Record<string, unknown>).comment !== 'string') throw new Error('Missing comment')
-        if (!['info', 'suggestion', 'warning'].includes((note as Record<string, unknown>).severity as string))
-          throw new Error('Invalid severity')
-      }
-    } catch {
-      return new Response(
-        JSON.stringify({ error: 'Failed to parse AI response', raw: result.text }),
-        { status: 502, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      )
-    }
-
-    return new Response(JSON.stringify(notes), {
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    })
-  } catch (error) {
-    console.error('AI feedback error:', error)
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'AI request failed' }),
-      { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+    await recordUsage(
+      ctx,
+      authentication.identity.tokenIdentifier,
+      selectedModel,
+      result.usage,
+      result.finalStep.providerMetadata,
     )
+    return jsonResponse(request, result.output)
+  } catch {
+    return jsonResponse(request, { error: 'AI feedback request failed' }, 502)
   }
 })

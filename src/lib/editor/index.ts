@@ -1,4 +1,9 @@
-export type { DocumentContent, EditorAdapter, Selection } from './types'
+export type {
+  DocumentContent,
+  EditorAdapter,
+  Selection,
+  TextSelectionContext,
+} from './types'
 export { TipTapAdapter } from './tiptap-adapter'
 export {
   computeDiffChunks,

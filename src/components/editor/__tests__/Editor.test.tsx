@@ -11,6 +11,7 @@ const mockGetJSON = vi.fn().mockReturnValue({ type: 'doc', content: [] })
 const mockCommands = {
   setContent: vi.fn(),
   focus: vi.fn(),
+  insertContentAt: vi.fn(),
 }
 const mockStorage = {
   characterCount: {
@@ -36,7 +37,7 @@ vi.mock('@tiptap/react', async () => {
   return {
     ...actual,
     useEditor: vi.fn(() => mockEditorInstance),
-    EditorContent: ({ editor: _editor }: { editor: unknown }) => (
+    EditorContent: () => (
       <div data-testid="editor-content" className="ProseMirror">
         Editor content
       </div>
@@ -133,6 +134,29 @@ describe('Editor', () => {
     render(<Editor content={content} />)
 
     expect(screen.getByTestId('editor-content')).toBeInTheDocument()
+  })
+
+  it('loads new content when the logical document changes', () => {
+    const first: DocumentContent = {
+      type: 'json',
+      data: { type: 'doc', content: [] },
+    }
+    const second: DocumentContent = {
+      type: 'json',
+      data: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'B' }] }],
+      },
+    }
+    const { rerender } = render(
+      <Editor content={first} contentKey="document-a" />
+    )
+
+    rerender(<Editor content={second} contentKey="document-b" />)
+
+    expect(mockCommands.setContent).toHaveBeenCalledWith(second.data, {
+      emitUpdate: false,
+    })
   })
 
   it('accepts editable false prop', () => {

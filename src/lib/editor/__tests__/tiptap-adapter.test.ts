@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TipTapAdapter } from '../tiptap-adapter'
 import type { Editor } from '@tiptap/react'
+import { Editor as CoreEditor } from '@tiptap/core'
+import StarterKit from '@tiptap/starter-kit'
+import { Markdown } from '@tiptap/markdown'
 
 function createMockEditor(overrides: Partial<Editor> = {}): Editor {
   const listeners: Record<string, Set<() => void>> = {}
@@ -15,17 +18,21 @@ function createMockEditor(overrides: Partial<Editor> = {}): Editor {
     commands: {
       setContent: vi.fn(),
       focus: vi.fn(),
+      insertContentAt: vi.fn(),
     },
     chain: vi.fn(() => ({
       focus: vi.fn().mockReturnThis(),
       deleteRange: vi.fn().mockReturnThis(),
       insertContent: vi.fn().mockReturnThis(),
+      insertContentAt: vi.fn().mockReturnThis(),
       run: vi.fn(),
     })),
     state: {
       selection: { from: 0, to: 0 },
       doc: {
         textBetween: vi.fn(() => ''),
+        nodesBetween: vi.fn(),
+        content: { size: 0 },
       },
     },
     storage: {
@@ -40,6 +47,20 @@ function createMockEditor(overrides: Partial<Editor> = {}): Editor {
     },
     ...overrides,
   } as unknown as Editor
+}
+
+function setSelection(editor: Editor, from: number, to: number): void {
+  const state = editor.state as unknown as {
+    selection: { from: number; to: number }
+  }
+  state.selection = { from, to }
+}
+
+function removeStorage(editor: Editor): void {
+  const mutableEditor = editor as unknown as {
+    storage: Record<string, unknown>
+  }
+  mutableEditor.storage = {}
 }
 
 describe('TipTapAdapter', () => {
@@ -88,18 +109,18 @@ describe('TipTapAdapter', () => {
 
   describe('getSelection', () => {
     it('returns null when no selection (cursor only)', () => {
-      ;(mockEditor.state as any).selection = { from: 5, to: 5 }
+      setSelection(mockEditor, 5, 5)
       expect(adapter.getSelection()).toBeNull()
     })
 
     it('returns null when selection is whitespace only', () => {
-      ;(mockEditor.state as any).selection = { from: 0, to: 5 }
+      setSelection(mockEditor, 0, 5)
       ;(mockEditor.state.doc.textBetween as ReturnType<typeof vi.fn>).mockReturnValue('   ')
       expect(adapter.getSelection()).toBeNull()
     })
 
     it('returns selection with text', () => {
-      ;(mockEditor.state as any).selection = { from: 0, to: 10 }
+      setSelection(mockEditor, 0, 10)
       ;(mockEditor.state.doc.textBetween as ReturnType<typeof vi.fn>).mockReturnValue('hello world')
 
       const selection = adapter.getSelection()
@@ -112,17 +133,19 @@ describe('TipTapAdapter', () => {
   })
 
   describe('replaceSelection', () => {
-    it('chains focus, deleteRange, insertContent, and run', () => {
-      ;(mockEditor.state as any).selection = { from: 5, to: 15 }
+    it('replaces the captured editor range and focuses the editor', () => {
+      setSelection(mockEditor, 5, 15)
       const chain = mockEditor.chain()
       ;(mockEditor.chain as ReturnType<typeof vi.fn>).mockReturnValue(chain)
 
       adapter.replaceSelection('new text')
 
-      expect(mockEditor.chain).toHaveBeenCalled()
+      expect(chain.insertContentAt).toHaveBeenCalledWith(
+        { from: 5, to: 15 },
+        'new text',
+        { contentType: 'markdown' },
+      )
       expect(chain.focus).toHaveBeenCalled()
-      expect(chain.deleteRange).toHaveBeenCalledWith({ from: 5, to: 15 })
-      expect(chain.insertContent).toHaveBeenCalledWith('new text')
       expect(chain.run).toHaveBeenCalled()
     })
   })
@@ -147,7 +170,7 @@ describe('TipTapAdapter', () => {
     })
 
     it('returns 0 when storage is unavailable', () => {
-      ;(mockEditor as any).storage = {}
+      removeStorage(mockEditor)
       expect(adapter.getCharacterCount()).toBe(0)
     })
   })
@@ -158,7 +181,7 @@ describe('TipTapAdapter', () => {
     })
 
     it('returns 0 when storage is unavailable', () => {
-      ;(mockEditor as any).storage = {}
+      removeStorage(mockEditor)
       expect(adapter.getWordCount()).toBe(0)
     })
   })
@@ -220,6 +243,143 @@ describe('TipTapAdapter', () => {
     it('calls editor focus command', () => {
       adapter.focus()
       expect(mockEditor.commands.focus).toHaveBeenCalled()
+    })
+  })
+
+  describe('AI replacement ranges', () => {
+    it('keeps preview offsets separate from ProseMirror positions', () => {
+      setSelection(mockEditor, 8, 14)
+      ;(
+        mockEditor.state.doc.textBetween as ReturnType<typeof vi.fn>
+      ).mockImplementation((from: number, to: number) => {
+        if (from === 8 && to === 14) return 'chosen'
+        if (from === 0 && to === 8) return 'Before '
+        return 'Before chosen after'
+      })
+
+      expect(adapter.getTextOffsetRange()).toEqual({
+        from: 7,
+        to: 13,
+        text: 'chosen',
+        fullText: 'Before chosen after',
+        editorFrom: 8,
+        editorTo: 14,
+      })
+    })
+
+    it('replaces only the original rich-text selection', () => {
+      const editor = new CoreEditor({
+        extensions: [StarterKit, Markdown],
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'heading',
+              attrs: { level: 2 },
+              content: [
+                { type: 'text', text: 'Before ' },
+                {
+                  type: 'text',
+                  marks: [{ type: 'bold' }],
+                  text: 'chosen',
+                },
+                { type: 'text', text: ' after' },
+              ],
+            },
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Untouched paragraph' }],
+            },
+          ],
+        },
+      })
+      const richTextAdapter = new TipTapAdapter(editor)
+
+      richTextAdapter.replaceRange(8, 14, '**replacement**')
+
+      expect(editor.getJSON()).toEqual({
+        type: 'doc',
+        content: [
+          {
+            type: 'heading',
+            attrs: { level: 2 },
+            content: [
+              { type: 'text', text: 'Before ' },
+              {
+                type: 'text',
+                marks: [{ type: 'bold' }],
+                text: 'replacement',
+              },
+              { type: 'text', text: ' after' },
+            ],
+          },
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Untouched paragraph' }],
+          },
+        ],
+      })
+
+      richTextAdapter.destroy()
+      editor.destroy()
+    })
+
+    it('can accept an AI edit that deletes the entire selection', () => {
+      const editor = new CoreEditor({
+        extensions: [StarterKit, Markdown],
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Keep remove keep' }],
+            },
+          ],
+        },
+      })
+      const richTextAdapter = new TipTapAdapter(editor)
+
+      richTextAdapter.replaceRange(6, 12, '')
+
+      expect(editor.getText()).toBe('Keep  keep')
+
+      richTextAdapter.destroy()
+      editor.destroy()
+    })
+
+    it('keeps marks shared by the entire original selection', () => {
+      const editor = new CoreEditor({
+        extensions: [StarterKit, Markdown],
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: 'Before ' },
+                {
+                  type: 'text',
+                  marks: [{ type: 'bold' }],
+                  text: 'chosen',
+                },
+                { type: 'text', text: ' after' },
+              ],
+            },
+          ],
+        },
+      })
+      const richTextAdapter = new TipTapAdapter(editor)
+
+      richTextAdapter.replaceRange(8, 14, 'replacement')
+
+      expect(editor.getJSON().content?.[0]?.content?.[1]).toEqual({
+        type: 'text',
+        marks: [{ type: 'bold' }],
+        text: 'replacement',
+      })
+
+      richTextAdapter.destroy()
+      editor.destroy()
     })
   })
 })

@@ -23,11 +23,14 @@ import { SpendingDashboard } from '@/components/settings/SpendingDashboard'
 import { toast } from 'sonner'
 import { Eye, EyeOff, Key, Save, Trash2 } from 'lucide-react'
 import { MODELS } from '@/lib/models'
+import { convexSiteUrl } from '@/lib/convex-url'
+import { useConvexHttpToken } from '@/hooks/useConvexHttpToken'
 
 export function SettingsPage() {
   const settings = useQuery(api.userSettings.get)
   const upsertSettings = useMutation(api.userSettings.upsert)
   const clearApiKey = useMutation(api.userSettings.clearApiKey)
+  const getConvexHttpToken = useConvexHttpToken()
 
   const [apiKey, setApiKey] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
@@ -39,11 +42,27 @@ export function SettingsPage() {
       return
     }
     try {
-      await upsertSettings({ vaultKeyId: apiKey.trim() })
+      const token = await getConvexHttpToken()
+      const response = await fetch(`${convexSiteUrl}/settings/openrouter-key`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      })
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as {
+          error?: string
+        } | null
+        throw new Error(payload?.error ?? 'Could not save API key')
+      }
       setApiKey('')
       toast.success('API key saved')
-    } catch {
-      toast.error('Failed to save API key')
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to save API key',
+      )
     }
   }
 
@@ -101,7 +120,7 @@ export function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {settings?.vaultKeyId ? (
+          {settings?.hasOpenRouterKey ? (
             <div className="flex items-center gap-2">
               <div className="flex-1 rounded-md border bg-muted px-3 py-2 text-sm">
                 <Key className="mr-2 inline h-4 w-4" />
@@ -148,12 +167,13 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle>Default Model</CardTitle>
           <CardDescription>
-            Choose the default AI model for text rewriting
+            Choose the default AI model for text rewriting. Prices are USD per
+            million input/output tokens.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <Select
-            value={settings?.defaultModel ?? 'anthropic/claude-sonnet-4'}
+            value={settings?.defaultModel ?? 'anthropic/claude-sonnet-5'}
             onValueChange={handleSaveModel}
           >
             <SelectTrigger className="w-64">

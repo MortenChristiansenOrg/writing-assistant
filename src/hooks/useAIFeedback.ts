@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { convexSiteUrl } from '@/lib/convex-url'
 import { toast } from 'sonner'
+import { useConvexHttpToken } from './useConvexHttpToken'
 
 interface FeedbackNote {
   comment: string
@@ -15,7 +16,7 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
   const settings = useQuery(api.userSettings.get)
   const createBatch = useMutation(api.reviewNotes.createBatch)
   const updateNote = useMutation(api.reviewNotes.update)
-  const recordSpending = useMutation(api.spending.record)
+  const getConvexHttpToken = useConvexHttpToken()
   const [loading, setLoading] = useState(false)
   const [reReviewingId, setReReviewingId] = useState<Id<'reviewNotes'> | null>(null)
 
@@ -24,7 +25,7 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
     persona: { id?: Id<'personas'>; name: string; systemPrompt: string; model?: string },
     options?: { projectDescription?: string; documentDescription?: string; focusArea?: string }
   ) => {
-    if (!settings?.vaultKeyId) {
+    if (!settings?.hasOpenRouterKey) {
       toast.error('Please add your OpenRouter API key in settings')
       return
     }
@@ -36,21 +37,24 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
 
     setLoading(true)
     try {
-      const model = persona.model ?? settings.defaultModel ?? 'anthropic/claude-sonnet-4'
+      const model = persona.model ?? settings.defaultModel ?? 'anthropic/claude-sonnet-5'
 
       const body: Record<string, string> = {
         text,
         persona: persona.systemPrompt,
         model,
-        apiKey: settings.vaultKeyId,
       }
       if (options?.projectDescription) body.projectDescription = options.projectDescription
       if (options?.documentDescription) body.documentDescription = options.documentDescription
       if (options?.focusArea) body.focusArea = options.focusArea
 
+      const token = await getConvexHttpToken()
       const res = await fetch(`${convexSiteUrl}/ai/feedback`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(body),
       })
 
@@ -70,11 +74,6 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
       if (persona.id) batch.personaId = persona.id
       await createBatch(batch)
 
-      // Estimate spending (~4 chars/token)
-      const inputTokens = Math.ceil(text.length / 4)
-      const outputTokens = Math.ceil(JSON.stringify(notes).length / 4)
-      recordSpending({ model, inputTokens, outputTokens }).catch(console.error)
-
       toast.success(`${notes.length} notes from ${persona.name}`)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Feedback request failed'
@@ -91,25 +90,28 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
     personaPrompt: string,
     personaModel?: string
   ) => {
-    if (!settings?.vaultKeyId) {
+    if (!settings?.hasOpenRouterKey) {
       toast.error('Please add your OpenRouter API key in settings')
       return
     }
 
     setReReviewingId(noteId)
     try {
-      const model = personaModel ?? settings.defaultModel ?? 'anthropic/claude-sonnet-4'
+      const model = personaModel ?? settings.defaultModel ?? 'anthropic/claude-sonnet-5'
 
       const reReviewPrompt = `Re-evaluate this specific editorial feedback in light of the current text. Has the issue been addressed? Respond with a SINGLE JSON array item (still wrapped in []) with updated comment, severity, and optional category.\n\nOriginal feedback: "${originalComment}"`
 
+      const token = await getConvexHttpToken()
       const res = await fetch(`${convexSiteUrl}/ai/feedback`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           text,
           persona: personaPrompt ? `${personaPrompt}\n\n${reReviewPrompt}` : reReviewPrompt,
           model,
-          apiKey: settings.vaultKeyId,
         }),
       })
 
@@ -125,9 +127,6 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
         toast.success('Note re-reviewed')
       }
 
-      const inputTokens = Math.ceil(text.length / 4)
-      const outputTokens = Math.ceil(JSON.stringify(notes).length / 4)
-      recordSpending({ model, inputTokens, outputTokens }).catch(console.error)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Re-review failed'
       toast.error(msg)
@@ -141,6 +140,6 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
     reReview,
     loading,
     reReviewingId,
-    hasApiKey: !!settings?.vaultKeyId,
+    hasApiKey: Boolean(settings?.hasOpenRouterKey),
   }
 }

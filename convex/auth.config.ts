@@ -1,8 +1,13 @@
+import type { AuthConfig } from 'convex/server'
+
+const issuerDomain =
+  process.env.CLERK_JWT_ISSUER_DOMAIN ?? 'https://clerk.invalid'
+
 export default {
   providers: [
     {
-      domain: process.env.CONVEX_SITE_URL,
-      applicationID: "convex",
+      domain: issuerDomain,
+      applicationID: 'convex',
     },
   ],
-};
+} satisfies AuthConfig

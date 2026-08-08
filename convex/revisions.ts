@@ -1,11 +1,11 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { auth } from './auth'
+import { getCurrentUserId } from './model/auth'
 
 export const list = query({
   args: { documentId: v.id('documents') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
     const doc = await ctx.db.get(args.documentId)
@@ -22,7 +22,7 @@ export const list = query({
 export const get = query({
   args: { id: v.id('revisions') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return null
 
     const revision = await ctx.db.get(args.id)
@@ -45,7 +45,7 @@ export const create = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const doc = await ctx.db.get(args.documentId)
@@ -69,7 +69,7 @@ export const restore = mutation({
     revisionId: v.id('revisions'),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const revision = await ctx.db.get(args.revisionId)

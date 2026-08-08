@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useMutation, useQuery } from 'convex/react'
+import { api } from '../convex/_generated/api'
 import { Toaster } from '@/components/ui/sonner'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/useAuth'
@@ -20,7 +23,47 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     return <LoginPage />
   }
 
-  return <>{children}</>
+  return <CurrentUserGate>{children}</CurrentUserGate>
+}
+
+function CurrentUserGate({ children }: { children: React.ReactNode }) {
+  const currentUser = useQuery(api.users.current)
+  const ensureCurrentUser = useMutation(api.users.ensureCurrent)
+  const [provisioningError, setProvisioningError] = useState(false)
+
+  useEffect(() => {
+    if (currentUser !== null) return
+
+    let active = true
+    void ensureCurrentUser().catch(() => {
+      if (active) setProvisioningError(true)
+    })
+    return () => {
+      active = false
+    }
+  }, [currentUser, ensureCurrentUser])
+
+  if (currentUser) return <>{children}</>
+
+  if (provisioningError) {
+    return (
+      <div className="flex h-screen items-center justify-center p-6">
+        <p role="alert" className="text-sm text-destructive">
+          Could not initialize your account. Refresh the page to try again.
+        </p>
+      </div>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  return null
 }
 
 function App() {

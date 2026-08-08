@@ -1,5 +1,11 @@
 import type { Editor } from '@tiptap/react'
-import type { DocumentContent, EditorAdapter, Selection } from './types'
+import type { JSONContent } from '@tiptap/core'
+import type {
+  DocumentContent,
+  EditorAdapter,
+  Selection,
+  TextSelectionContext,
+} from './types'
 
 export class TipTapAdapter implements EditorAdapter {
   private editor: Editor
@@ -48,12 +54,7 @@ export class TipTapAdapter implements EditorAdapter {
 
   replaceSelection(text: string): void {
     const { from, to } = this.editor.state.selection
-    this.editor
-      .chain()
-      .focus()
-      .deleteRange({ from, to })
-      .insertContent(text)
-      .run()
+    this.replaceRange(from, to, text)
   }
 
   insertAtCursor(text: string): void {
@@ -93,11 +94,7 @@ export class TipTapAdapter implements EditorAdapter {
   }
 
   getMarkdown(): string {
-    const storage = this.editor.storage as unknown as Record<string, unknown>
-    const markdown = storage.markdown as
-      | { getMarkdown?: () => string }
-      | undefined
-    return markdown?.getMarkdown?.() ?? this.getPlainText()
+    return this.editor.getMarkdown?.() ?? this.getPlainText()
   }
 
   getSelectedMarkdown(): string | null {
@@ -111,12 +108,7 @@ export class TipTapAdapter implements EditorAdapter {
     return this.editor.state.doc.textBetween(from, to, '\n')
   }
 
-  getTextOffsetRange(): {
-    from: number
-    to: number
-    text: string
-    fullText: string
-  } | null {
+  getTextOffsetRange(): TextSelectionContext | null {
     const { from, to } = this.editor.state.selection
     if (from === to) return null
 
@@ -136,20 +128,94 @@ export class TipTapAdapter implements EditorAdapter {
       to: before.length + text.length,
       text,
       fullText,
+      editorFrom: from,
+      editorTo: to,
     }
   }
 
+  getDocumentRange(): { from: number; to: number } {
+    return { from: 0, to: this.editor.state.doc.content.size }
+  }
+
   replaceRange(from: number, to: number, content: string): void {
+    const parsed = this.editor.markdown?.parse(content)
+    const parsedContent = parsed?.content
+    const sharedMarks = this.getSharedMarks(from, to)
+    if (parsedContent === undefined) {
+      this.editor
+        .chain()
+        .insertContentAt({ from, to }, content, { contentType: 'markdown' })
+        .focus()
+        .run()
+      return
+    }
+
+    const insertion =
+      parsedContent.length === 1 && parsedContent[0]?.type === 'paragraph'
+        ? (parsedContent[0].content ?? []).map((node) =>
+            this.applySharedMarks(node, sharedMarks)
+          )
+        : parsedContent
+
     this.editor
       .chain()
+      .insertContentAt({ from, to }, insertion)
       .focus()
-      .deleteRange({ from, to })
-      .insertContentAt(from, content)
       .run()
   }
 
+  private getSharedMarks(
+    from: number,
+    to: number
+  ): NonNullable<JSONContent['marks']> {
+    let sharedMarks: NonNullable<JSONContent['marks']> | undefined
+
+    this.editor.state.doc.nodesBetween(from, to, (node) => {
+      if (!node.isText) return
+
+      const nodeMarks = node.marks.map((mark) => mark.toJSON())
+      sharedMarks =
+        sharedMarks === undefined
+          ? nodeMarks
+          : sharedMarks.filter((sharedMark) =>
+              nodeMarks.some((nodeMark) =>
+                this.marksMatch(sharedMark, nodeMark)
+              )
+            )
+    })
+
+    return sharedMarks ?? []
+  }
+
+  private applySharedMarks(
+    node: JSONContent,
+    sharedMarks: NonNullable<JSONContent['marks']>
+  ): JSONContent {
+    if (node.type !== 'text' || sharedMarks.length === 0) return node
+
+    const existingMarks = node.marks ?? []
+    const missingMarks = sharedMarks.filter(
+      (sharedMark) =>
+        !existingMarks.some((existingMark) =>
+          this.marksMatch(sharedMark, existingMark)
+        )
+    )
+
+    return { ...node, marks: [...existingMarks, ...missingMarks] }
+  }
+
+  private marksMatch(
+    first: NonNullable<JSONContent['marks']>[number],
+    second: NonNullable<JSONContent['marks']>[number]
+  ): boolean {
+    return (
+      first.type === second.type &&
+      JSON.stringify(first.attrs ?? {}) === JSON.stringify(second.attrs ?? {})
+    )
+  }
+
   setMarkdownContent(markdown: string): void {
-    this.editor.commands.setContent(markdown)
+    this.editor.commands.setContent(markdown, { contentType: 'markdown' })
   }
 
   destroy(): void {

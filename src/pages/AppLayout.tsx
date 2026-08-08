@@ -1,10 +1,22 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AppSidebar } from '@/components/sidebar/AppSidebar'
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import { EditorPage } from '@/pages/EditorPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { ProjectPage } from '@/pages/ProjectPage'
+
+const EditorPage = lazy(() =>
+  import('@/pages/EditorPage').then((module) => ({ default: module.EditorPage })),
+)
+const SettingsPage = lazy(() =>
+  import('@/pages/SettingsPage').then((module) => ({
+    default: module.SettingsPage,
+  })),
+)
+const ProjectPage = lazy(() =>
+  import('@/pages/ProjectPage').then((module) => ({
+    default: module.ProjectPage,
+  })),
+)
 
 export function AppLayout() {
   return (
@@ -12,15 +24,28 @@ export function AppLayout() {
       <AppSidebar />
       <SidebarInset>
         <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<WelcomePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/project/:projectId" element={<ProjectPage key="project" />} />
-            <Route path="/project/:projectId/doc/:docId" element={<EditorPage />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<WelcomePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/project/:projectId" element={<ProjectPage />} />
+              <Route
+                path="/project/:projectId/doc/:docId"
+                element={<EditorPage />}
+              />
+            </Routes>
+          </Suspense>
         </ErrorBoundary>
       </SidebarInset>
     </SidebarProvider>
+  )
+}
+
+function PageLoader() {
+  return (
+    <div className="flex h-full items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
   )
 }
 
@@ -36,4 +61,3 @@ function WelcomePage() {
     </div>
   )
 }
-

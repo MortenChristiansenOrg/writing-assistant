@@ -1,125 +1,27 @@
-# Next Steps
+# Next opportunities
 
-## Remaining (lower priority)
+The stabilization branch completed the Clerk migration, encrypted per-user BYOK storage, current dependency/toolchain upgrades, authenticated AI actions, provider-reported usage, safe document switching, serialized autosave, and structured selection replacement.
 
-**Split Large Components** - 3 exceed 200-line threshold:
+## Highest value
 
-1. **PersonaManager.tsx (240 lines)** - Split into PersonaForm + PersonaList
-2. **AppSidebar.tsx (232 lines)** - Extract ProjectSection + DocumentSection
-3. **SettingsPage.tsx (237 lines)** - Extract ApiKeySection, ModelSection, ThresholdSection
+- Add OpenRouter OAuth PKCE so users can authorize a key without exposing the generated credential to browser JavaScript; keep paste-as-key as a fallback.
+- Replace the static model picker with a curated catalog refreshed from OpenRouter metadata, including capability and price changes.
+- Add revision comparison, pruning, and explicit save/recovery status to make long-form work feel durable.
+- Code-split the editor, settings, history, and persona surfaces; the current production JavaScript chunk is still about 421 kB gzip.
+- Define a strict recursive TipTap document validator instead of `v.any()` for document and revision content.
 
-**Optional Query State Improvements:**
+## Product upside
 
-- AppSidebar.tsx - add loading state UI for documents query
-- HistoryPanel.tsx - distinguish loading vs empty
+- Pass project, document, and selected persona context consistently into rewrites.
+- Render a genuinely progressive streaming diff rather than waiting for a complete proposal.
+- Add export to Markdown/DOCX, project search, and local crash-recovery drafts.
+- Add model retry/fallback policy with sanitized provider errors and explicit cancellation state.
 
----
+## Security and operations
 
-## Short-term improvements
+- Consider moving key encryption to managed envelope-key infrastructure such as WorkOS Vault before broad production use; the current AES-GCM design is secure but makes master-key rotation and audit policy an application responsibility.
+- Add CSP and session-replay redaction around the API-key input to reduce exposure while a user is typing.
+- Add a key-version rotation job before changing `CREDENTIAL_ENCRYPTION_KEY`.
+- Decide whether spending thresholds are warnings or hard server-side limits.
 
-### API Key Security
-
-Currently storing API key directly in userSettings. Plan called for WorkOS Vault:
-
-- Integrate WorkOS Vault for HSM-backed encryption
-- Keys should only be decrypted server-side in the streaming endpoint
-- Never expose raw key to client
-
-### Revision System
-
-- Add periodic auto-revision (5s idle OR 30s max as planned)
-- Diff view between revisions
-- Revision pruning (keep last N per document)
-- Size limits on stored content
-
-### Editor Polish
-
-- Keyboard shortcuts for AI actions
-- Inline streaming preview (show AI output in editor as it streams)
-- Undo/redo integration with revision system
-- Character/word count goals
-
-### AI Integration
-
-- Persona selector in BubbleMenu (currently only in settings)
-- Custom prompts beyond the preset actions
-- Model selector per-request
-- Retry on failure with exponential backoff
-
-## Medium-term
-
-### Performance
-
-- Code split settings/personas (lazy load)
-- Virtual scrolling for long revision lists
-- Optimistic updates for document saves
-- Service worker for offline draft editing
-
-### UX
-
-- Dark mode toggle (CSS vars are ready)
-- Mobile responsive testing
-- Drag-drop document reordering
-- Search across documents
-- Export to markdown/docx
-
-### Collaboration (if needed)
-
-- TipTap has Yjs integration for real-time collab
-- Would need Convex subscriptions for presence
-- Cursor positions, user avatars
-
-## Investigate later
-
-### Effect Library
-
-Plan noted it's overkill for MVP but revisit if:
-
-- AI streaming layer gets complex retry/recovery logic
-- Need sophisticated error handling patterns
-- Resource management becomes painful
-
-### Alternative Editors
-
-TipTap abstraction layer exists, could swap to:
-
-- Lexical (better perf for huge docs)
-- Novel (TipTap-based but with more built-in AI UX)
-
-### Cost Tracking Accuracy
-
-Current token estimation is rough (`length / 4`). Options:
-
-- Use actual usage from OpenRouter response headers
-- tiktoken for accurate pre-request estimates
-- Store prompt + completion tokens separately
-
-### Testing
-
-Plan called for:
-
-- Unit tests: Convex mutations with convex-test
-- Integration: AI streaming with mocks
-- E2E: Playwright for auth, create doc, AI rewrite
-  None implemented yet.
-
-## Architecture notes
-
-### Why no WorkOS Vault yet
-
-Adds dependency, needs account setup. For MVP, direct storage works but is less secure. Prioritize before any real user data.
-
-### Why stub \_generated files
-
-Can't run `convex codegen` without deployment. Stubs let TypeScript compile. Real types appear after `npx convex dev`.
-
-### BubbleMenu API changed in TipTap 3.x
-
-Had to import from `@tiptap/react/menus` instead of main export. `tippyOptions` removed, uses Floating UI now.
-
-## Questions to resolve
-
-- Spending threshold: warn only or hard block?
-- Revision granularity: time-based auto-save vs explicit save button?
-- Multi-model support: let users add custom OpenRouter models or curate list?
-- Persona scope: per-user only or share between team members later?
+Collaboration, dark mode, drag-and-drop ordering, and an editor replacement are lower priority. TipTap, Convex, React, and Vite remain good fits for the product.

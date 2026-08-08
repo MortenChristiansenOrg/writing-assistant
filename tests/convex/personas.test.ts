@@ -27,7 +27,7 @@ describe('personas', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Persona 1',
           systemPrompt: 'Be helpful',
           isDefault: false,
@@ -35,7 +35,7 @@ describe('personas', () => {
           updatedAt: 1000,
         })
         await ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Persona 2',
           systemPrompt: 'Be concise',
           isDefault: false,
@@ -54,7 +54,7 @@ describe('personas', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'User 1 Persona',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -73,7 +73,7 @@ describe('personas', () => {
       const { userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -91,7 +91,7 @@ describe('personas', () => {
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -108,7 +108,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'My Persona',
           description: 'A test persona',
           systemPrompt: 'Be awesome',
@@ -130,7 +130,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -159,7 +159,7 @@ describe('personas', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Non-default',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -177,7 +177,7 @@ describe('personas', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Non-default',
           systemPrompt: 'Prompt 1',
           isDefault: false,
@@ -185,7 +185,7 @@ describe('personas', () => {
           updatedAt: 1000,
         })
         await ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Default One',
           systemPrompt: 'Prompt 2',
           isDefault: true,
@@ -255,7 +255,7 @@ describe('personas', () => {
 
       const existingId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Old Default',
           systemPrompt: 'Prompt',
           isDefault: true,
@@ -283,7 +283,7 @@ describe('personas', () => {
       const { userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -305,7 +305,7 @@ describe('personas', () => {
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -326,7 +326,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -351,7 +351,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Original',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -373,7 +373,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -395,7 +395,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Old prompt',
           isDefault: false,
@@ -418,7 +418,7 @@ describe('personas', () => {
 
       const persona1Id = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Persona 1',
           systemPrompt: 'Prompt',
           isDefault: true,
@@ -428,7 +428,7 @@ describe('personas', () => {
       )
       const persona2Id = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Persona 2',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -454,7 +454,7 @@ describe('personas', () => {
       const { userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -473,7 +473,7 @@ describe('personas', () => {
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -491,7 +491,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,
@@ -513,7 +513,7 @@ describe('personas', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const personaId = await t.run(async (ctx) =>
         ctx.db.insert('personas', {
-          userId: userId as never,
+          userId: userId,
           name: 'Test',
           systemPrompt: 'Prompt',
           isDefault: false,

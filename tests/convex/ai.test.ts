@@ -1,201 +1,114 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ProviderMetadata } from 'ai'
 
-// Note: httpAction testing is limited as convex-test doesn't fully support http actions
-// These tests focus on validation logic and CORS headers structure
-
-describe('ai', () => {
-  describe('CORS headers', () => {
-    it('defines correct CORS headers structure', () => {
-      const corsHeaders = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-      }
-
-      expect(corsHeaders['Access-Control-Allow-Origin']).toBe('*')
-      expect(corsHeaders['Access-Control-Allow-Methods']).toBe('POST, OPTIONS')
-      expect(corsHeaders['Access-Control-Allow-Headers']).toBe('Content-Type')
-    })
+describe('AI boundary security', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.stubEnv('CLIENT_ORIGIN', 'https://writing.example')
+    vi.stubEnv(
+      'CLIENT_PREVIEW_ORIGIN',
+      'https://writing-assistant-*-morten.vercel.app',
+    )
   })
 
-  describe('action prompts', () => {
-    const ACTION_PROMPTS: Record<string, string> = {
-      rewrite:
-        'Rewrite the following text while preserving its meaning. Make it clearer and more engaging.',
-      shorter:
-        'Make the following text more concise. Remove unnecessary words while preserving the core meaning.',
-      longer:
-        'Expand the following text with more detail and explanation while maintaining the same tone.',
-      formal:
-        'Rewrite the following text in a more formal, professional tone.',
-      casual:
-        'Rewrite the following text in a more casual, conversational tone.',
-      fix_grammar:
-        'Fix any grammar, spelling, or punctuation errors in the following text. Only make corrections, do not change the style or meaning.',
-    }
+  it('allows only previews belonging to the configured Vercel project', async () => {
+    const { isAllowedOrigin } = await import('../../convex/httpUtils')
 
-    it('has all expected actions', () => {
-      const expectedActions = [
-        'rewrite',
-        'shorter',
-        'longer',
-        'formal',
-        'casual',
-        'fix_grammar',
-      ]
-      expect(Object.keys(ACTION_PROMPTS)).toEqual(expectedActions)
-    })
-
-    it('has non-empty prompts for each action', () => {
-      for (const [action, prompt] of Object.entries(ACTION_PROMPTS)) {
-        expect(prompt.length).toBeGreaterThan(0)
-        expect(typeof prompt).toBe('string')
-      }
-    })
+    expect(
+      isAllowedOrigin(
+        new Request('https://backend.example/ai/stream', {
+          headers: {
+            Origin: 'https://writing-assistant-a1b2c3-morten.vercel.app',
+          },
+        }),
+      ),
+    ).toBe(true)
+    expect(
+      isAllowedOrigin(
+        new Request('https://backend.example/ai/stream', {
+          headers: { Origin: 'https://other-project-a1b2c3-morten.vercel.app' },
+        }),
+      ),
+    ).toBe(false)
   })
 
-  describe('request validation logic', () => {
-    const validateRequest = (body: {
-      action?: string
-      text?: string
-      apiKey?: string
-    }): { valid: boolean; error?: string } => {
-      if (!body.action || !body.text || !body.apiKey) {
-        return { valid: false, error: 'Missing required fields' }
-      }
-      const validActions = [
-        'rewrite',
-        'shorter',
-        'longer',
-        'formal',
-        'casual',
-        'fix_grammar',
-      ]
-      if (!validActions.includes(body.action)) {
-        return { valid: false, error: 'Invalid action' }
-      }
-      return { valid: true }
-    }
-
-    it('rejects missing action', () => {
-      const result = validateRequest({ text: 'hello', apiKey: 'key' })
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('Missing required fields')
-    })
-
-    it('rejects missing text', () => {
-      const result = validateRequest({ action: 'rewrite', apiKey: 'key' })
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('Missing required fields')
-    })
-
-    it('rejects missing apiKey', () => {
-      const result = validateRequest({ action: 'rewrite', text: 'hello' })
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('Missing required fields')
-    })
-
-    it('rejects invalid action', () => {
-      const result = validateRequest({
-        action: 'invalid',
-        text: 'hello',
-        apiKey: 'key',
-      })
-      expect(result.valid).toBe(false)
-      expect(result.error).toBe('Invalid action')
-    })
-
-    it('accepts valid request', () => {
-      const result = validateRequest({
-        action: 'rewrite',
-        text: 'hello',
-        apiKey: 'key',
-      })
-      expect(result.valid).toBe(true)
-      expect(result.error).toBeUndefined()
-    })
-
-    it('accepts all valid actions', () => {
-      const validActions = [
-        'rewrite',
-        'shorter',
-        'longer',
-        'formal',
-        'casual',
-        'fix_grammar',
-      ]
-      for (const action of validActions) {
-        const result = validateRequest({
-          action,
-          text: 'hello',
-          apiKey: 'key',
-        })
-        expect(result.valid).toBe(true)
-      }
-    })
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
-  describe('system prompt construction', () => {
-    const buildSystemPrompt = (
-      actionPrompt: string,
-      persona?: string
-    ): string => {
-      return persona ? `${persona}\n\n${actionPrompt}` : actionPrompt
-    }
+  it('allows only the configured browser origin', async () => {
+    const { isAllowedOrigin } = await import('../../convex/httpUtils')
 
-    it('returns action prompt when no persona', () => {
-      const result = buildSystemPrompt('Rewrite text')
-      expect(result).toBe('Rewrite text')
-    })
-
-    it('combines persona with action prompt', () => {
-      const result = buildSystemPrompt('Rewrite text', 'Be concise')
-      expect(result).toBe('Be concise\n\nRewrite text')
-    })
-
-    it('handles empty persona string', () => {
-      const result = buildSystemPrompt('Rewrite text', '')
-      expect(result).toBe('Rewrite text')
-    })
+    expect(
+      isAllowedOrigin(
+        new Request('https://backend.example/ai/stream', {
+          headers: { Origin: 'https://writing.example' },
+        }),
+      ),
+    ).toBe(true)
+    expect(
+      isAllowedOrigin(
+        new Request('https://backend.example/ai/stream', {
+          headers: { Origin: 'https://attacker.example' },
+        }),
+      ),
+    ).toBe(false)
   })
 
-  describe('default model selection', () => {
-    const selectModel = (model?: string): string => {
-      return model ?? 'anthropic/claude-3.5-sonnet'
-    }
+  it('allows authorization and varies cached CORS responses by origin', async () => {
+    const { corsHeaders } = await import('../../convex/httpUtils')
+    const headers = new Headers(
+      corsHeaders(
+        new Request('https://backend.example/ai/stream', {
+          headers: { Origin: 'https://writing.example' },
+        }),
+      ),
+    )
 
-    it('uses default model when not specified', () => {
-      expect(selectModel()).toBe('anthropic/claude-3.5-sonnet')
-      expect(selectModel(undefined)).toBe('anthropic/claude-3.5-sonnet')
-    })
+    expect(headers.get('Access-Control-Allow-Origin')).toBe(
+      'https://writing.example',
+    )
+    expect(headers.get('Access-Control-Allow-Headers')).toContain('Authorization')
+    expect(headers.get('Vary')).toBe('Origin')
+  })
 
-    it('uses provided model when specified', () => {
-      expect(selectModel('openai/gpt-4o')).toBe('openai/gpt-4o')
-      expect(selectModel('google/gemini-2.0-flash')).toBe('google/gemini-2.0-flash')
-    })
+  it('binds encrypted credentials to their Clerk identity', async () => {
+    vi.stubEnv('CREDENTIAL_ENCRYPTION_KEY', btoa('x'.repeat(32)))
+    const { decryptSecret, encryptSecret } = await import(
+      '../../convex/model/secrets'
+    )
+    const secret = 'sk-or-test-secret-that-must-not-leak'
+    const encrypted = await encryptSecret(secret, 'issuer|user_a')
+
+    expect(encrypted.ciphertext).not.toContain(secret)
+    await expect(decryptSecret(encrypted, 'issuer|user_b')).rejects.toThrow()
+    await expect(decryptSecret(encrypted, 'issuer|user_a')).resolves.toBe(secret)
   })
 })
 
-describe('http routes', () => {
-  describe('/ai/stream route configuration', () => {
-    it('validates OPTIONS method support', () => {
-      // The route should support OPTIONS for CORS preflight
-      const supportedMethods = ['POST', 'OPTIONS']
-      expect(supportedMethods).toContain('OPTIONS')
-      expect(supportedMethods).toContain('POST')
-    })
+describe('OpenRouter usage accounting', () => {
+  it('records the billed provider cost before the upstream fallback', async () => {
+    const { openRouterCost } = await import('../../convex/ai')
+    const metadata = {
+      openrouter: {
+        usage: {
+          cost: 0.42,
+          costDetails: { upstreamInferenceCost: 0.21 },
+        },
+      },
+    } as ProviderMetadata
 
-    it('validates POST method support', () => {
-      const supportedMethods = ['POST', 'OPTIONS']
-      expect(supportedMethods).toContain('POST')
-    })
+    expect(openRouterCost(metadata)).toBe(0.42)
+  })
 
-    it('should reject non-POST methods', () => {
-      const allowedMethods = ['POST', 'OPTIONS']
-      expect(allowedMethods).not.toContain('GET')
-      expect(allowedMethods).not.toContain('PUT')
-      expect(allowedMethods).not.toContain('DELETE')
-      expect(allowedMethods).not.toContain('PATCH')
-    })
+  it('uses upstream inference cost only when billed cost is absent', async () => {
+    const { openRouterCost } = await import('../../convex/ai')
+    const metadata = {
+      openrouter: {
+        usage: { costDetails: { upstreamInferenceCost: 0.21 } },
+      },
+    } as ProviderMetadata
+
+    expect(openRouterCost(metadata)).toBe(0.21)
   })
 })
