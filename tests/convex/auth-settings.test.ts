@@ -40,6 +40,33 @@ describe('Clerk identity and encrypted settings', () => {
     await expect(other.query(api.users.current, {})).resolves.toBeNull()
   })
 
+  it('clears local profile fields removed from Clerk', async () => {
+    const issuer = 'https://clerk.test'
+    const subject = 'user_profile'
+    const tokenIdentifier = `${issuer}|${subject}`
+    const withProfile = t.withIdentity({
+      issuer,
+      subject,
+      tokenIdentifier,
+      name: 'Writer',
+      email: 'writer@example.com',
+      pictureUrl: 'https://example.com/writer.png',
+    })
+    await withProfile.mutation(api.users.ensureCurrent, {})
+
+    const withoutProfile = t.withIdentity({
+      issuer,
+      subject,
+      tokenIdentifier,
+    })
+    await withoutProfile.mutation(api.users.ensureCurrent, {})
+
+    const current = await withoutProfile.query(api.users.current, {})
+    expect(current?.name).toBeUndefined()
+    expect(current?.email).toBeUndefined()
+    expect(current?.imageUrl).toBeUndefined()
+  })
+
   it('never exposes encrypted OpenRouter credential fields publicly', async () => {
     const { asUser, tokenIdentifier } = await createAuthenticatedContext(t)
     await t.mutation(internal.userSettings.storeEncryptedOpenRouterKey, {
@@ -79,5 +106,24 @@ describe('Clerk identity and encrypted settings', () => {
     expect(
       (await second.asUser.query(api.userSettings.get, {}))?.hasOpenRouterKey,
     ).toBe(true)
+  })
+
+  it('removes the authenticated user credential through the HTTP endpoint', async () => {
+    const user = await createAuthenticatedContext(t)
+    await t.mutation(internal.userSettings.storeEncryptedOpenRouterKey, {
+      tokenIdentifier: user.tokenIdentifier,
+      ciphertext: 'ciphertext',
+      iv: 'iv',
+      version: 1,
+    })
+
+    const response = await user.asUser.fetch('/settings/openrouter-key', {
+      method: 'DELETE',
+    })
+
+    expect(response.status).toBe(204)
+    expect(
+      (await user.asUser.query(api.userSettings.get, {}))?.hasOpenRouterKey,
+    ).toBe(false)
   })
 })

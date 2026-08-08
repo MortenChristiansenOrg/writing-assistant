@@ -133,8 +133,34 @@ describe('projects', () => {
   it('rejects new documents and personas once deletion begins', async () => {
     const { asUser, userId } = await createAuthenticatedContext(t)
     const projectId = await createTestProject(t, userId)
+    const documentId = await createTestDocument(t, userId, projectId)
 
     await asUser.mutation(api.projects.remove, { id: projectId })
+
+    expect(
+      await asUser.query(api.documents.get, { id: documentId }),
+    ).toBeNull()
+    await expect(
+      asUser.mutation(api.documents.update, {
+        id: documentId,
+        title: 'Too late',
+      }),
+    ).rejects.toThrow('Document not found')
+    await expect(
+      asUser.mutation(api.revisions.create, {
+        documentId,
+        content: { type: 'doc' },
+        changeType: 'manual',
+      }),
+    ).rejects.toThrow('Document not found')
+    await expect(
+      asUser.mutation(api.reviewNotes.createBatch, {
+        documentId,
+        personaName: 'Reviewer',
+        model: 'test/model',
+        notes: [{ comment: 'Too late', severity: 'warning' }],
+      }),
+    ).rejects.toThrow('Document not found')
 
     await expect(
       asUser.mutation(api.documents.create, {

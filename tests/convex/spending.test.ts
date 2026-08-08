@@ -310,7 +310,7 @@ describe('spending', () => {
     })
 
     it('clamps a negative provider cost', async () => {
-      const { tokenIdentifier } = await createAuthenticatedContext(t)
+      const { asUser, tokenIdentifier } = await createAuthenticatedContext(t)
       const result = await t.mutation(internal.spending.recordUsage, {
         tokenIdentifier,
         model: 'test/model',
@@ -319,6 +319,9 @@ describe('spending', () => {
         totalCost: -5,
       })
       expect(result.totalCost).toBe(0)
+      const today = await asUser.query(api.spending.getToday, {})
+      expect(today?.totalCost).toBe(0)
+      expect(today?.sessions[0]?.totalCost).toBe(0)
     })
   })
 })
