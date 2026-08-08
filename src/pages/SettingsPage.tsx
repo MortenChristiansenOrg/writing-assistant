@@ -26,10 +26,9 @@ import { MODELS } from '@/lib/models'
 import { convexSiteUrl } from '@/lib/convex-url'
 import { useConvexHttpToken } from '@/hooks/useConvexHttpToken'
 
-export function SettingsPage() {
+export function SettingsPage(): React.ReactElement {
   const settings = useQuery(api.userSettings.get)
   const upsertSettings = useMutation(api.userSettings.upsert)
-  const clearApiKey = useMutation(api.userSettings.clearApiKey)
   const getConvexHttpToken = useConvexHttpToken()
 
   const [apiKey, setApiKey] = useState('')
@@ -68,7 +67,12 @@ export function SettingsPage() {
 
   const handleClearApiKey = async () => {
     try {
-      await clearApiKey()
+      const token = await getConvexHttpToken()
+      const response = await fetch(`${convexSiteUrl}/settings/openrouter-key`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) throw new Error('Could not remove API key')
       toast.success('API key removed')
     } catch {
       toast.error('Failed to remove API key')
@@ -197,7 +201,7 @@ export function SettingsPage() {
         <CardHeader>
           <CardTitle>Spending Threshold</CardTitle>
           <CardDescription>
-            Set a daily spending warning threshold (USD)
+            Set a daily AI spending limit (USD)
           </CardDescription>
         </CardHeader>
         <CardContent>

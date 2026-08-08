@@ -11,7 +11,7 @@ import { AIBubbleMenu, type AIAction } from './AIBubbleMenu'
 
 interface EditorProps {
   content?: DocumentContent
-  contentKey?: string
+  contentKey: string
   onChange?: (content: DocumentContent) => void
   onAdapterReady?: (adapter: EditorAdapter) => void
   onAIAction?: (action: AIAction, selectedText: string) => void
@@ -100,7 +100,9 @@ export function Editor({
         editor.commands.setContent(content.data, { emitUpdate: false })
       }
     } else {
-      editor.commands.setContent(content.data, { emitUpdate: false })
+      if (editor.getHTML() !== content.data) {
+        editor.commands.setContent(content.data, { emitUpdate: false })
+      }
     }
 
     contentKeyRef.current = contentKey

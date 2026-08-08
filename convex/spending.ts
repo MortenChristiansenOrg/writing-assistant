@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { internalMutation, query } from './_generated/server'
+import { internalMutation, internalQuery, query } from './_generated/server'
 import { getCurrentUserId } from './model/auth'
 
 function getDateString(date: Date = new Date()): string {
@@ -75,6 +75,39 @@ export const getRange = query({
       date,
       ...data,
     }))
+  },
+})
+
+export const getThresholdStatus = internalQuery({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_token', (queryBuilder) =>
+        queryBuilder.eq('tokenIdentifier', args.tokenIdentifier),
+      )
+      .unique()
+    if (!user) return null
+
+    const settings = await ctx.db
+      .query('userSettings')
+      .withIndex('by_user', (queryBuilder) =>
+        queryBuilder.eq('userId', user._id),
+      )
+      .unique()
+    const threshold = settings?.spendingThreshold ?? 1
+    const sessions = await ctx.db
+      .query('spendingSessions')
+      .withIndex('by_user_date', (queryBuilder) =>
+        queryBuilder.eq('userId', user._id).eq('date', getDateString()),
+      )
+      .collect()
+    const totalCost = sessions.reduce(
+      (total, session) => total + session.totalCost,
+      0,
+    )
+
+    return { threshold, totalCost }
   },
 })
 

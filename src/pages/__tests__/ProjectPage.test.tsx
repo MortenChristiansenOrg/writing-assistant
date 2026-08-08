@@ -70,6 +70,7 @@ describe('ProjectPage', () => {
   })
 
   afterEach(() => {
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
@@ -98,7 +99,7 @@ describe('ProjectPage', () => {
 
   it('reports a failed save without dropping later edits', async () => {
     const saveError = new Error('save failed')
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
     mockUpdateProject
       .mockRejectedValueOnce(saveError)
       .mockResolvedValueOnce(undefined)
@@ -124,7 +125,6 @@ describe('ProjectPage', () => {
       id: projectId,
       name: 'Second edit',
     })
-    consoleError.mockRestore()
   })
 
   it('flushes pending edits when navigation unmounts the page', async () => {

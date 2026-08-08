@@ -8,12 +8,6 @@ const apiKeyInput = z.object({
   apiKey: z.string().trim().min(10).max(512),
 })
 
-async function requireIdentity(ctx: ActionCtx) {
-  const identity = await ctx.auth.getUserIdentity()
-  if (!identity) throw new Error('Unauthorized')
-  return identity
-}
-
 export async function getOpenRouterApiKey(
   ctx: ActionCtx,
   tokenIdentifier: string,
@@ -23,7 +17,22 @@ export async function getOpenRouterApiKey(
     { tokenIdentifier },
   )
   if (!encrypted) return null
-  return await decryptSecret(encrypted, tokenIdentifier)
+  const decrypted = await decryptSecret(encrypted, tokenIdentifier)
+  if (!decrypted) return null
+
+  if (decrypted.needsRotation) {
+    try {
+      const rotated = await encryptSecret(decrypted.plaintext, tokenIdentifier)
+      await ctx.runMutation(
+        internal.userSettings.storeEncryptedOpenRouterKey,
+        { tokenIdentifier, ...rotated },
+      )
+    } catch {
+      console.error('Stored OpenRouter credential rotation failed')
+    }
+  }
+
+  return decrypted.plaintext
 }
 
 export const saveOpenRouterKey = httpAction(async (ctx, request) => {
@@ -31,10 +40,8 @@ export const saveOpenRouterKey = httpAction(async (ctx, request) => {
     return jsonResponse(request, { error: 'Origin not allowed' }, 403)
   }
 
-  let identity
-  try {
-    identity = await requireIdentity(ctx)
-  } catch {
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity) {
     return jsonResponse(request, { error: 'Unauthorized' }, 401)
   }
 
@@ -54,11 +61,28 @@ export const saveOpenRouterKey = httpAction(async (ctx, request) => {
     })
     return jsonResponse(request, { configured: true })
   } catch {
+    console.error('Failed to store OpenRouter credential')
     return jsonResponse(request, { error: 'Could not store API key' }, 500)
   }
 })
 
-export const credentialOptions = httpAction(async (_ctx, request) => {
+export const deleteOpenRouterKey = httpAction(async (ctx, request) => {
+  if (!isAllowedOrigin(request)) {
+    return jsonResponse(request, { error: 'Origin not allowed' }, 403)
+  }
+
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity) {
+    return jsonResponse(request, { error: 'Unauthorized' }, 401)
+  }
+
+  await ctx.runMutation(internal.userSettings.clearEncryptedOpenRouterKey, {
+    tokenIdentifier: identity.tokenIdentifier,
+  })
+  return new Response(null, { status: 204, headers: corsHeaders(request) })
+})
+
+export const preflight = httpAction(async (_ctx, request) => {
   if (!isAllowedOrigin(request)) {
     return new Response(null, { status: 403, headers: corsHeaders(request) })
   }

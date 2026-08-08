@@ -28,9 +28,15 @@ Users bring their own OpenRouter key. The key is sent once to an authenticated C
 
    `CREDENTIAL_ENCRYPTION_KEY` is one application-level encryption key, not a
    user's OpenRouter key. Generate it once with `openssl rand -base64 32` and
-   keep it backed up and stable; changing it makes existing stored credentials
-   unreadable. Each user supplies and manages their own OpenRouter key from the
-   app's Settings page.
+   keep it backed up. Each user supplies and manages their own OpenRouter key
+   from the app's Settings page.
+
+   To rotate the encryption key, first add the old key to the JSON object in
+   `CREDENTIAL_ENCRYPTION_KEYRING` under its numeric version, set a new
+   `CREDENTIAL_ENCRYPTION_KEY`, and increment `KEY_VERSION` in
+   `convex/model/secrets.ts`. Old credentials are re-encrypted on their next
+   successful use. Retain every unmigrated version in the keyring; removing a
+   version intentionally invalidates dormant credentials that still use it.
 5. Run the user-managed Convex development process, then start the UI with `bun dev`.
 
 There is no data migration. Clerk identities create their local Convex user record on first authenticated load.
@@ -46,6 +52,19 @@ bun run build
 ```
 
 Browser tests use the real Clerk integration through `@clerk/testing`, not an application auth bypass. Use Clerk development keys and a dedicated `+clerk_test` user, then run `bun e2e`.
+
+## Preview deployments
+
+The Vercel project must have `VITE_CLERK_PUBLISHABLE_KEY` and a Convex Preview
+Deploy Key named `CONVEX_DEPLOY_KEY`, both scoped to Preview. The Convex project
+must define these preview defaults before the first build:
+
+- `CLERK_JWT_ISSUER_DOMAIN`
+- `CLIENT_PREVIEW_ORIGIN`, restricted to the Vercel project hostname pattern
+- `CREDENTIAL_ENCRYPTION_KEY`
+
+`vercel.json` deploys a branch-specific Convex preview backend, passes its URL
+to the Vite build, and rewrites client-side routes to `index.html`.
 
 ## Layout
 

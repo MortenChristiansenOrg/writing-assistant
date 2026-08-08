@@ -26,7 +26,11 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <CurrentUserGate>{children}</CurrentUserGate>
 }
 
-function CurrentUserGate({ children }: { children: React.ReactNode }) {
+function CurrentUserGate({
+  children,
+}: {
+  children: React.ReactNode
+}): React.ReactElement | null {
   const currentUser = useQuery(api.users.current)
   const ensureCurrentUser = useMutation(api.users.ensureCurrent)
   const [provisioningError, setProvisioningError] = useState(false)

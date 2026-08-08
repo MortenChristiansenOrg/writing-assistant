@@ -1,16 +1,21 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useQuery, useMutation } from 'convex/react'
+import { z } from 'zod'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { convexSiteUrl } from '@/lib/convex-url'
 import { toast } from 'sonner'
 import { useConvexHttpToken } from './useConvexHttpToken'
 
-interface FeedbackNote {
-  comment: string
-  severity: 'info' | 'suggestion' | 'warning'
-  category?: string
-}
+const feedbackNotesSchema = z.array(
+  z.object({
+    comment: z.string().min(1),
+    severity: z.enum(['info', 'suggestion', 'warning']),
+    category: z.string().optional(),
+  }),
+)
+
+type FeedbackNote = z.infer<typeof feedbackNotesSchema>[number]
 
 export function useAIFeedback(documentId: Id<'documents'> | undefined) {
   const settings = useQuery(api.userSettings.get)
@@ -19,6 +24,35 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
   const getConvexHttpToken = useConvexHttpToken()
   const [loading, setLoading] = useState(false)
   const [reReviewingId, setReReviewingId] = useState<Id<'reviewNotes'> | null>(null)
+
+  const postFeedback = useCallback(
+    async (body: Record<string, string>): Promise<FeedbackNote[]> => {
+      const token = await getConvexHttpToken()
+      const response = await fetch(`${convexSiteUrl}/ai/feedback`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
+      const payload: unknown = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        const parsedError = z.object({ error: z.string() }).safeParse(payload)
+        throw new Error(
+          parsedError.success ? parsedError.data.error : 'Request failed',
+        )
+      }
+
+      const parsedNotes = feedbackNotesSchema.safeParse(payload)
+      if (!parsedNotes.success) {
+        throw new Error('AI returned an invalid feedback response')
+      }
+      return parsedNotes.data
+    },
+    [getConvexHttpToken],
+  )
 
   const requestFeedback = async (
     text: string,
@@ -48,28 +82,17 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
       if (options?.documentDescription) body.documentDescription = options.documentDescription
       if (options?.focusArea) body.focusArea = options.focusArea
 
-      const token = await getConvexHttpToken()
-      const res = await fetch(`${convexSiteUrl}/ai/feedback`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }))
-        throw new Error((err as { error?: string }).error ?? 'Request failed')
-      }
-
-      const notes = (await res.json()) as FeedbackNote[]
+      const notes = await postFeedback(body)
 
       const batch: Parameters<typeof createBatch>[0] = {
         documentId,
         personaName: persona.name,
         model,
-        notes,
+        notes: notes.map((note) => ({
+          comment: note.comment,
+          severity: note.severity,
+          ...(note.category !== undefined && { category: note.category }),
+        })),
       }
       if (persona.id) batch.personaId = persona.id
       await createBatch(batch)
@@ -101,29 +124,21 @@ export function useAIFeedback(documentId: Id<'documents'> | undefined) {
 
       const reReviewPrompt = `Re-evaluate this specific editorial feedback in light of the current text. Has the issue been addressed? Respond with a SINGLE JSON array item (still wrapped in []) with updated comment, severity, and optional category.\n\nOriginal feedback: "${originalComment}"`
 
-      const token = await getConvexHttpToken()
-      const res = await fetch(`${convexSiteUrl}/ai/feedback`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text,
-          persona: personaPrompt ? `${personaPrompt}\n\n${reReviewPrompt}` : reReviewPrompt,
-          model,
-        }),
+      const notes = await postFeedback({
+        text,
+        persona: personaPrompt
+          ? `${personaPrompt}\n\n${reReviewPrompt}`
+          : reReviewPrompt,
+        model,
       })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }))
-        throw new Error((err as { error?: string }).error ?? 'Request failed')
-      }
-
-      const notes = (await res.json()) as FeedbackNote[]
       if (notes.length > 0) {
         const updated = notes[0]!
-        await updateNote({ id: noteId, comment: updated.comment, severity: updated.severity })
+        await updateNote({
+          id: noteId,
+          comment: updated.comment,
+          severity: updated.severity,
+          category: updated.category ?? null,
+        })
         toast.success('Note re-reviewed')
       }
 

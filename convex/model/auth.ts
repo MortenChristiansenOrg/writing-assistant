@@ -1,5 +1,5 @@
 import type { MutationCtx, QueryCtx } from '../_generated/server'
-import type { Id } from '../_generated/dataModel'
+import type { Doc, Id } from '../_generated/dataModel'
 
 type AuthenticatedDatabaseContext = Pick<QueryCtx | MutationCtx, 'auth' | 'db'>
 
@@ -27,4 +27,30 @@ export async function requireCurrentUserId(
     throw new Error('Unauthorized')
   }
   return userId
+}
+
+export async function getActiveOwnedDocument(
+  ctx: AuthenticatedDatabaseContext,
+  documentId: Id<'documents'>,
+  userId: Id<'users'>,
+): Promise<Doc<'documents'> | null> {
+  const document = await ctx.db.get(documentId)
+  if (
+    !document ||
+    document.userId !== userId ||
+    document.deletingAt !== undefined
+  ) {
+    return null
+  }
+
+  const project = await ctx.db.get(document.projectId)
+  if (
+    !project ||
+    project.userId !== userId ||
+    project.deletingAt !== undefined
+  ) {
+    return null
+  }
+
+  return document
 }

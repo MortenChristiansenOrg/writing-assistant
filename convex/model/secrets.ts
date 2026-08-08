@@ -7,6 +7,11 @@ export interface EncryptedSecret {
   version: number
 }
 
+export interface DecryptedSecret {
+  plaintext: string
+  needsRotation: boolean
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
@@ -22,15 +27,13 @@ function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   return bytes
 }
 
-async function getEncryptionKey(): Promise<CryptoKey> {
-  const encodedKey = process.env.CREDENTIAL_ENCRYPTION_KEY
-  if (!encodedKey) throw new Error('Credential encryption is not configured')
-
+async function importEncryptionKey(
+  encodedKey: string,
+  variableName: string,
+): Promise<CryptoKey> {
   const keyBytes = base64ToBytes(encodedKey)
   if (keyBytes.byteLength !== 32) {
-    throw new Error(
-      'CREDENTIAL_ENCRYPTION_KEY must be a base64-encoded 32-byte key',
-    )
+    throw new Error(`${variableName} must be a base64-encoded 32-byte key`)
   }
 
   return await crypto.subtle.importKey(
@@ -42,9 +45,44 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   )
 }
 
-function additionalData(ownerTokenIdentifier: string): Uint8Array<ArrayBuffer> {
+async function getCurrentEncryptionKey(): Promise<CryptoKey> {
+  const encodedKey = process.env.CREDENTIAL_ENCRYPTION_KEY
+  if (!encodedKey) throw new Error('Credential encryption is not configured')
+  return await importEncryptionKey(encodedKey, 'CREDENTIAL_ENCRYPTION_KEY')
+}
+
+async function getDecryptionKey(version: number): Promise<CryptoKey | null> {
+  if (version === KEY_VERSION) return await getCurrentEncryptionKey()
+  const encodedKeyring = process.env.CREDENTIAL_ENCRYPTION_KEYRING
+  if (!encodedKeyring) return null
+
+  let keyring: unknown
+  try {
+    keyring = JSON.parse(encodedKeyring)
+  } catch {
+    throw new Error('CREDENTIAL_ENCRYPTION_KEYRING must be valid JSON')
+  }
+  if (
+    typeof keyring !== 'object' ||
+    keyring === null ||
+    Array.isArray(keyring)
+  ) {
+    throw new Error('CREDENTIAL_ENCRYPTION_KEYRING must be a JSON object')
+  }
+  const encodedKey = (keyring as Record<string, unknown>)[String(version)]
+  if (typeof encodedKey !== 'string') return null
+  return await importEncryptionKey(
+    encodedKey,
+    `CREDENTIAL_ENCRYPTION_KEYRING version ${version}`,
+  )
+}
+
+function additionalData(
+  ownerTokenIdentifier: string,
+  version: number,
+): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(
-    `writing-assistant|openrouter|v${KEY_VERSION}|${ownerTokenIdentifier}`,
+    `writing-assistant|openrouter|v${version}|${ownerTokenIdentifier}`,
   )
 }
 
@@ -52,13 +90,13 @@ export async function encryptSecret(
   plaintext: string,
   ownerTokenIdentifier: string,
 ): Promise<EncryptedSecret> {
-  const key = await getEncryptionKey()
+  const key = await getCurrentEncryptionKey()
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES))
   const ciphertext = await crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
       iv,
-      additionalData: additionalData(ownerTokenIdentifier),
+      additionalData: additionalData(ownerTokenIdentifier, KEY_VERSION),
     },
     key,
     new TextEncoder().encode(plaintext),
@@ -74,21 +112,30 @@ export async function encryptSecret(
 export async function decryptSecret(
   secret: EncryptedSecret,
   ownerTokenIdentifier: string,
-): Promise<string> {
-  if (secret.version !== KEY_VERSION) {
-    throw new Error('Unsupported credential encryption version')
+): Promise<DecryptedSecret | null> {
+  try {
+    const key = await getDecryptionKey(secret.version)
+    if (!key) throw new Error('Unsupported credential encryption version')
+
+    const plaintext = await crypto.subtle.decrypt(
+      {
+        name: 'AES-GCM',
+        iv: base64ToBytes(secret.iv),
+        additionalData: additionalData(
+          ownerTokenIdentifier,
+          secret.version,
+        ),
+      },
+      key,
+      base64ToBytes(secret.ciphertext),
+    )
+
+    return {
+      plaintext: new TextDecoder().decode(plaintext),
+      needsRotation: secret.version !== KEY_VERSION,
+    }
+  } catch {
+    console.error('Stored credential could not be decrypted')
+    return null
   }
-
-  const key = await getEncryptionKey()
-  const plaintext = await crypto.subtle.decrypt(
-    {
-      name: 'AES-GCM',
-      iv: base64ToBytes(secret.iv),
-      additionalData: additionalData(ownerTokenIdentifier),
-    },
-    key,
-    base64ToBytes(secret.ciphertext),
-  )
-
-  return new TextDecoder().decode(plaintext)
 }

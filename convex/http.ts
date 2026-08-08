@@ -1,13 +1,17 @@
 import { httpRouter } from 'convex/server'
 import { stream, feedback } from './ai'
-import { credentialOptions, saveOpenRouterKey } from './credentials'
+import {
+  deleteOpenRouterKey,
+  preflight,
+  saveOpenRouterKey,
+} from './credentials'
 
 const http = httpRouter()
 
 http.route({
   path: '/ai/stream',
   method: 'OPTIONS',
-  handler: credentialOptions,
+  handler: preflight,
 })
 
 http.route({
@@ -19,7 +23,7 @@ http.route({
 http.route({
   path: '/ai/feedback',
   method: 'OPTIONS',
-  handler: credentialOptions,
+  handler: preflight,
 })
 
 http.route({
@@ -31,13 +35,19 @@ http.route({
 http.route({
   path: '/settings/openrouter-key',
   method: 'OPTIONS',
-  handler: credentialOptions,
+  handler: preflight,
 })
 
 http.route({
   path: '/settings/openrouter-key',
   method: 'POST',
   handler: saveOpenRouterKey,
+})
+
+http.route({
+  path: '/settings/openrouter-key',
+  method: 'DELETE',
+  handler: deleteOpenRouterKey,
 })
 
 export default http

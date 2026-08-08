@@ -115,6 +115,19 @@ async function authenticate(ctx: ActionCtx, request: Request) {
     return { response: jsonResponse(request, { error: 'Unauthorized' }, 401) }
   }
 
+  const spending = await ctx.runQuery(internal.spending.getThresholdStatus, {
+    tokenIdentifier: identity.tokenIdentifier,
+  })
+  if (spending && spending.totalCost >= spending.threshold) {
+    return {
+      response: jsonResponse(
+        request,
+        { error: 'Daily AI spending limit reached' },
+        429,
+      ),
+    }
+  }
+
   const apiKey = await getOpenRouterApiKey(ctx, identity.tokenIdentifier)
   if (!apiKey) {
     return {
@@ -176,6 +189,16 @@ export const stream = httpAction(async (ctx, request) => {
           }
         } catch {
           streamError = 'AI request failed'
+        }
+
+        if (!streamError) {
+          try {
+            if ((await result.finishReason) === 'length') {
+              streamError = 'AI response was truncated; try a smaller selection'
+            }
+          } catch {
+            streamError = 'AI request failed'
+          }
         }
 
         if (streamError) {
@@ -264,6 +287,13 @@ export const feedback = httpAction(async (ctx, request) => {
       result.usage,
       result.finalStep.providerMetadata,
     )
+    if (!Array.isArray(result.output)) {
+      return jsonResponse(
+        request,
+        { error: 'AI feedback request failed' },
+        502,
+      )
+    }
     return jsonResponse(request, result.output)
   } catch {
     return jsonResponse(request, { error: 'AI feedback request failed' }, 502)

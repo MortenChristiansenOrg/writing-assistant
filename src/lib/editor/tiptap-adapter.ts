@@ -140,7 +140,6 @@ export class TipTapAdapter implements EditorAdapter {
   replaceRange(from: number, to: number, content: string): void {
     const parsed = this.editor.markdown?.parse(content)
     const parsedContent = parsed?.content
-    const sharedMarks = this.getSharedMarks(from, to)
     if (parsedContent === undefined) {
       this.editor
         .chain()
@@ -149,6 +148,7 @@ export class TipTapAdapter implements EditorAdapter {
         .run()
       return
     }
+    const sharedMarks = this.getSharedMarks(from, to)
 
     const insertion =
       parsedContent.length === 1 && parsedContent[0]?.type === 'paragraph'
@@ -197,7 +197,7 @@ export class TipTapAdapter implements EditorAdapter {
     const missingMarks = sharedMarks.filter(
       (sharedMark) =>
         !existingMarks.some((existingMark) =>
-          this.marksMatch(sharedMark, existingMark)
+          existingMark.type === sharedMark.type
         )
     )
 
@@ -210,8 +210,24 @@ export class TipTapAdapter implements EditorAdapter {
   ): boolean {
     return (
       first.type === second.type &&
-      JSON.stringify(first.attrs ?? {}) === JSON.stringify(second.attrs ?? {})
+      this.stableValue(first.attrs ?? {}) ===
+        this.stableValue(second.attrs ?? {})
     )
+  }
+
+  private stableValue(value: unknown): string {
+    const normalize = (item: unknown): unknown => {
+      if (Array.isArray(item)) return item.map(normalize)
+      if (typeof item !== 'object' || item === null) return item
+
+      const normalized: Record<string, unknown> = {}
+      for (const key of Object.keys(item).sort()) {
+        normalized[key] = normalize((item as Record<string, unknown>)[key])
+      }
+      return normalized
+    }
+
+    return JSON.stringify(normalize(value))
   }
 
   setMarkdownContent(markdown: string): void {

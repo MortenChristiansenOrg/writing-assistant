@@ -40,7 +40,11 @@ export const ensureCurrent = mutation({
     }
 
     if (existing) {
-      await ctx.db.patch(existing._id, profile)
+      // replace intentionally clears optional profile fields removed in Clerk.
+      await ctx.db.replace(existing._id, {
+        tokenIdentifier: identity.tokenIdentifier,
+        ...profile,
+      })
       return existing._id
     }
 

@@ -8,6 +8,7 @@ const mockOn = vi.fn()
 const mockOff = vi.fn()
 const mockDestroy = vi.fn()
 const mockGetJSON = vi.fn().mockReturnValue({ type: 'doc', content: [] })
+const mockGetHTML = vi.fn().mockReturnValue('')
 const mockCommands = {
   setContent: vi.fn(),
   focus: vi.fn(),
@@ -24,6 +25,7 @@ const mockEditorInstance = {
   off: mockOff,
   destroy: mockDestroy,
   getJSON: mockGetJSON,
+  getHTML: mockGetHTML,
   commands: mockCommands,
   storage: mockStorage,
   state: {
@@ -65,11 +67,12 @@ describe('Editor', () => {
     vi.clearAllMocks()
     mockStorage.characterCount.words.mockReturnValue(0)
     mockGetJSON.mockReturnValue({ type: 'doc', content: [] })
+    mockGetHTML.mockReturnValue('')
     mockEditorInstance.state.doc.textBetween.mockReturnValue('')
   })
 
   it('renders editor content', () => {
-    render(<Editor />)
+    render(<Editor contentKey="test-document" />)
 
     expect(screen.getByTestId('editor-content')).toBeInTheDocument()
   })
@@ -77,7 +80,7 @@ describe('Editor', () => {
   it('displays word count', () => {
     mockStorage.characterCount.words.mockReturnValue(42)
 
-    render(<Editor />)
+    render(<Editor contentKey="test-document" />)
 
     expect(screen.getByText('42 words')).toBeInTheDocument()
   })
@@ -85,7 +88,7 @@ describe('Editor', () => {
   it('shows zero word count for empty editor', () => {
     mockStorage.characterCount.words.mockReturnValue(0)
 
-    render(<Editor />)
+    render(<Editor contentKey="test-document" />)
 
     expect(screen.getByText('0 words')).toBeInTheDocument()
   })
@@ -93,7 +96,7 @@ describe('Editor', () => {
   it('creates adapter for onChange handling', async () => {
     const mockOnChange = vi.fn()
 
-    render(<Editor onChange={mockOnChange} />)
+    render(<Editor contentKey="test-document" onChange={mockOnChange} />)
 
     // TipTapAdapter is instantiated
     expect(screen.getByTestId('editor-content')).toBeInTheDocument()
@@ -102,7 +105,9 @@ describe('Editor', () => {
   it('calls onAdapterReady with adapter', async () => {
     const mockOnAdapterReady = vi.fn()
 
-    render(<Editor onAdapterReady={mockOnAdapterReady} />)
+    render(
+      <Editor contentKey="test-document" onAdapterReady={mockOnAdapterReady} />,
+    )
 
     await waitFor(() => {
       expect(mockOnAdapterReady).toHaveBeenCalled()
@@ -112,14 +117,14 @@ describe('Editor', () => {
   it('renders AI bubble menu when onAIAction provided', () => {
     const mockOnAIAction = vi.fn()
 
-    render(<Editor onAIAction={mockOnAIAction} />)
+    render(<Editor contentKey="test-document" onAIAction={mockOnAIAction} />)
 
     expect(screen.getByTestId('bubble-menu')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /ai/i })).toBeInTheDocument()
   })
 
   it('does not render AI button when onAIAction not provided', () => {
-    render(<Editor />)
+    render(<Editor contentKey="test-document" />)
 
     expect(screen.getByTestId('bubble-menu')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /ai/i })).not.toBeInTheDocument()
@@ -131,7 +136,7 @@ describe('Editor', () => {
       data: { type: 'doc', content: [] },
     }
 
-    render(<Editor content={content} />)
+    render(<Editor content={content} contentKey="test-document" />)
 
     expect(screen.getByTestId('editor-content')).toBeInTheDocument()
   })
@@ -159,28 +164,46 @@ describe('Editor', () => {
     })
   })
 
+  it('does not replace identical HTML when the logical key changes', () => {
+    const content: DocumentContent = {
+      type: 'html',
+      data: '<p>Same content</p>',
+    }
+    mockGetHTML.mockReturnValue(content.data)
+
+    const { rerender } = render(
+      <Editor content={content} contentKey="document-a" />,
+    )
+    mockCommands.setContent.mockClear()
+    rerender(<Editor content={content} contentKey="document-b" />)
+
+    expect(mockCommands.setContent).not.toHaveBeenCalled()
+  })
+
   it('accepts editable false prop', () => {
-    render(<Editor editable={false} />)
+    render(<Editor contentKey="test-document" editable={false} />)
 
     // Editor renders, editable is passed via useEditor config
     expect(screen.getByTestId('editor-content')).toBeInTheDocument()
   })
 
   it('accepts custom placeholder prop', () => {
-    render(<Editor placeholder="Write something..." />)
+    render(
+      <Editor contentKey="test-document" placeholder="Write something..." />,
+    )
 
     // Editor renders with custom placeholder in config
     expect(screen.getByTestId('editor-content')).toBeInTheDocument()
   })
 
   it('registers update listener for word count', () => {
-    render(<Editor />)
+    render(<Editor contentKey="test-document" />)
 
     expect(mockOn).toHaveBeenCalledWith('update', expect.any(Function))
   })
 
   it('cleans up listeners on unmount', () => {
-    const { unmount } = render(<Editor />)
+    const { unmount } = render(<Editor contentKey="test-document" />)
 
     unmount()
 
@@ -190,7 +213,7 @@ describe('Editor', () => {
   it('renders word count container', () => {
     mockStorage.characterCount.words.mockReturnValue(100)
 
-    render(<Editor />)
+    render(<Editor contentKey="test-document" />)
 
     expect(screen.getByText('100 words')).toBeInTheDocument()
   })

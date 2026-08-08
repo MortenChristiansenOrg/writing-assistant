@@ -41,4 +41,11 @@ describe('convex-url', () => {
     const { convexSiteUrl } = await import('../convex-url')
     expect(convexSiteUrl).toBe('http://127.0.0.1:3211')
   })
+
+  it('prefers an explicit site URL over a derived cloud URL', async () => {
+    vi.stubEnv('VITE_CONVEX_URL', 'https://test-project.convex.cloud')
+    vi.stubEnv('VITE_CONVEX_SITE_URL', 'https://custom.example.com/')
+    const { convexSiteUrl } = await import('../convex-url')
+    expect(convexSiteUrl).toBe('https://custom.example.com')
+  })
 })

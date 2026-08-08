@@ -12,7 +12,7 @@ export interface SavePoint {
   chunks: DiffChunk[]
 }
 
-interface TextRange {
+export interface TextRange {
   from: number
   to: number
 }

@@ -7,7 +7,7 @@ import {
   query,
   type MutationCtx,
 } from './_generated/server'
-import { getCurrentUserId } from './model/auth'
+import { getActiveOwnedDocument, getCurrentUserId } from './model/auth'
 
 const DELETE_BATCH_SIZE = 64
 
@@ -41,12 +41,7 @@ export const get = query({
     const userId = await getCurrentUserId(ctx)
     if (!userId) return null
 
-    const doc = await ctx.db.get(args.id)
-    if (!doc || doc.userId !== userId || doc.deletingAt !== undefined) {
-      return null
-    }
-
-    return doc
+    return await getActiveOwnedDocument(ctx, args.id, userId)
   },
 })
 
@@ -99,8 +94,8 @@ export const update = mutation({
     const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const doc = await ctx.db.get(args.id)
-    if (!doc || doc.userId !== userId || doc.deletingAt !== undefined) {
+    const doc = await getActiveOwnedDocument(ctx, args.id, userId)
+    if (!doc) {
       throw new Error('Document not found')
     }
 
@@ -123,15 +118,12 @@ export const remove = mutation({
     const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const doc = await ctx.db.get(args.id)
-    if (!doc || doc.userId !== userId) {
+    if (!(await getActiveOwnedDocument(ctx, args.id, userId))) {
       throw new Error('Document not found')
     }
 
-    if (doc.deletingAt === undefined) {
-      await ctx.db.patch(args.id, { deletingAt: Date.now() })
-      await ctx.scheduler.runAfter(0, internal.documents.cleanup, { id: args.id })
-    }
+    await ctx.db.patch(args.id, { deletingAt: Date.now() })
+    await ctx.scheduler.runAfter(0, internal.documents.cleanup, { id: args.id })
   },
 })
 

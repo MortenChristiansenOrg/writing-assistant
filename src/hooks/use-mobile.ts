@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 
 const MOBILE_BREAKPOINT = 768
 
-export function useIsMobile() {
+export function useIsMobile(): boolean {
   return useSyncExternalStore(
     (onStoreChange) => {
       const mediaQuery = window.matchMedia(

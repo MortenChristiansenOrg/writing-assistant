@@ -127,6 +127,33 @@ export const storeEncryptedOpenRouterKey = internalMutation({
   },
 })
 
+export const clearEncryptedOpenRouterKey = internalMutation({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_token', (queryBuilder) =>
+        queryBuilder.eq('tokenIdentifier', args.tokenIdentifier),
+      )
+      .unique()
+    if (!user) throw new Error('Unauthorized')
+
+    const existing = await ctx.db
+      .query('userSettings')
+      .withIndex('by_user', (queryBuilder) =>
+        queryBuilder.eq('userId', user._id),
+      )
+      .unique()
+    if (!existing) return
+
+    await ctx.db.patch(existing._id, {
+      openRouterKeyCiphertext: undefined,
+      openRouterKeyIv: undefined,
+      openRouterKeyVersion: undefined,
+    })
+  },
+})
+
 export const getEncryptedOpenRouterKey = internalQuery({
   args: { tokenIdentifier: v.string() },
   handler: async (ctx, args) => {

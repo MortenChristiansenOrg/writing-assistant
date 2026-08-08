@@ -1,6 +1,6 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { getCurrentUserId } from './model/auth'
+import { getActiveOwnedDocument, getCurrentUserId } from './model/auth'
 
 export const list = query({
   args: { documentId: v.id('documents') },
@@ -8,8 +8,7 @@ export const list = query({
     const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
-    const doc = await ctx.db.get(args.documentId)
-    if (!doc || doc.userId !== userId) return []
+    if (!(await getActiveOwnedDocument(ctx, args.documentId, userId))) return []
 
     return await ctx.db
       .query('revisions')
@@ -27,6 +26,13 @@ export const get = query({
 
     const revision = await ctx.db.get(args.id)
     if (!revision || revision.userId !== userId) return null
+
+    const document = await getActiveOwnedDocument(
+      ctx,
+      revision.documentId,
+      userId,
+    )
+    if (!document) return null
 
     return revision
   },
@@ -48,8 +54,7 @@ export const create = mutation({
     const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const doc = await ctx.db.get(args.documentId)
-    if (!doc || doc.userId !== userId) {
+    if (!(await getActiveOwnedDocument(ctx, args.documentId, userId))) {
       throw new Error('Document not found')
     }
 
@@ -77,7 +82,11 @@ export const restore = mutation({
       throw new Error('Revision not found')
     }
 
-    const doc = await ctx.db.get(revision.documentId)
+    const doc = await getActiveOwnedDocument(
+      ctx,
+      revision.documentId,
+      userId,
+    )
     if (!doc) throw new Error('Document not found')
 
     await ctx.db.insert('revisions', {

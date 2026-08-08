@@ -18,7 +18,7 @@ const ProjectPage = lazy(() =>
   })),
 )
 
-export function AppLayout() {
+export function AppLayout(): React.ReactElement {
   return (
     <SidebarProvider>
       <AppSidebar />
@@ -41,7 +41,7 @@ export function AppLayout() {
   )
 }
 
-function PageLoader() {
+function PageLoader(): React.ReactElement {
   return (
     <div className="flex h-full items-center justify-center">
       <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

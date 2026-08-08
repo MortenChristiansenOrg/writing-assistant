@@ -105,18 +105,32 @@ function LoadedEditorPage({
   const review = useReviewNotes(docId)
   const feedback = useAIFeedback(docId)
 
+  const saveDocument = useCallback(
+    async (
+      value:
+        | { id: Id<'documents'>; content: Record<string, unknown> | string }
+        | { id: Id<'documents'>; description: string },
+    ): Promise<void> => {
+      await updateDocument(value)
+    },
+    [updateDocument],
+  )
+  const handleContentSaveError = useCallback((error: unknown): void => {
+    toast.error('Failed to save')
+    console.error(error)
+  }, [])
+  const handleDescriptionSaveError = useCallback((error: unknown): void => {
+    toast.error('Failed to save description')
+    console.error(error)
+  }, [])
+
   const contentAutosave = useSerializedAutosave<{
     id: Id<'documents'>
     content: Record<string, unknown> | string
   }>({
     delay: AUTOSAVE_DELAY,
-    save: async (value) => {
-      await updateDocument(value)
-    },
-    onError: (error) => {
-      toast.error('Failed to save')
-      console.error(error)
-    },
+    save: saveDocument,
+    onError: handleContentSaveError,
   })
 
   const descriptionAutosave = useSerializedAutosave<{
@@ -124,13 +138,8 @@ function LoadedEditorPage({
     description: string
   }>({
     delay: AUTOSAVE_DELAY,
-    save: async (value) => {
-      await updateDocument(value)
-    },
-    onError: (error) => {
-      toast.error('Failed to save description')
-      console.error(error)
-    },
+    save: saveDocument,
+    onError: handleDescriptionSaveError,
   })
 
   const handleDescriptionChange = useCallback(
@@ -173,23 +182,28 @@ function LoadedEditorPage({
     )
   }
 
-  const handleFinish = () => {
+  const handleFinish = async (): Promise<void> => {
     const adapter = editorAdapterRef.current
     const range = session.documentRange
-    if (!adapter || !range || !docId) return
-
-    const mergedText = session.finish()
-    if (mergedText === null) return
+    if (!adapter || !range) return
 
     // Create revision before replacing
     const currentContent = adapter.getContent()
-    void createRevision({
-      documentId: docId as Id<'documents'>,
-      content: currentContent.data,
-      changeType: 'ai_rewrite',
-      description: `AI rewrite`,
-    })
+    try {
+      await createRevision({
+        documentId: docId,
+        content: currentContent.data,
+        changeType: 'ai_rewrite',
+        description: 'AI rewrite',
+      })
+    } catch (error) {
+      toast.error('Failed to save revision history')
+      console.error(error)
+      return
+    }
 
+    const mergedText = session.finish()
+    if (mergedText === null) return
     adapter.replaceRange(range.from, range.to, mergedText)
     toast.success('AI edits applied')
   }
@@ -210,7 +224,7 @@ function LoadedEditorPage({
     setReviewOpen(true)
     const opts: { projectDescription?: string; documentDescription?: string; focusArea?: string } = {}
     if (project?.description) opts.projectDescription = project.description
-    const docDesc = document?.description
+    const docDesc = document.description
     if (docDesc) opts.documentDescription = docDesc
     if (focusArea) opts.focusArea = focusArea
     void feedback.requestFeedback(text, persona, opts)
@@ -282,7 +296,7 @@ function LoadedEditorPage({
           <h1 className="text-lg font-medium">{document.title}</h1>
           <div className="flex items-center gap-2">
             <FeedbackRequestPopover
-              {...(projectId ? { projectId: projectId as Id<'projects'> } : {})}
+              {...(projectId ? { projectId } : {})}
               loading={feedback.loading}
               onRequest={handleFeedbackRequest}
             />
@@ -302,7 +316,7 @@ function LoadedEditorPage({
                 </span>
               )}
             </Button>
-            <HistoryPanel documentId={docId as Id<'documents'>} />
+            <HistoryPanel documentId={docId} />
           </div>
         </div>
         <Input
