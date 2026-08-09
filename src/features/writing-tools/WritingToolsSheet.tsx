@@ -85,12 +85,14 @@ function ToolCard({
   tool,
   reason,
   disabledReason,
-  onSelect,
+  onUse,
+  onDetails,
 }: {
   tool: ToolDefinition
   reason: string | null
   disabledReason: string | null
-  onSelect: () => void
+  onUse: () => void
+  onDetails: () => void
 }) {
   return (
     <Card className="gap-4 py-4 shadow-none">
@@ -108,9 +110,12 @@ function ToolCard({
           </p>
         </CardContent>
       )}
-      <CardFooter className="justify-end px-4">
-        <Button variant="outline" size="sm" onClick={onSelect}>
-          See how it works
+      <CardFooter className="justify-end gap-2 px-4">
+        <Button variant="outline" size="sm" onClick={onDetails}>
+          Details
+        </Button>
+        <Button size="sm" onClick={onUse} disabled={disabledReason !== null}>
+          Use tool
         </Button>
       </CardFooter>
     </Card>
@@ -334,14 +339,19 @@ export function WritingToolsSheet({
     return matchesStage && haystack.includes(query.trim().toLowerCase())
   }), [query, stage, tools])
 
-  const run = async () => {
-    if (!selectedTool) return
-    const disabledReason = getDisabledReason(selectedTool, context)
+  const run = async (
+    tool: ToolDefinition | null = selectedTool,
+    toolParameters: ToolParameters = parameters,
+  ) => {
+    if (!tool) return
+    const disabledReason = getDisabledReason(tool, context)
     if (disabledReason) {
       setError(disabledReason)
       return
     }
-    const missing = selectedTool.parameters?.find((parameter) => parameter.required && !parameters[parameter.id]?.trim())
+    const missing = tool.parameters?.find(
+      (parameter) => parameter.required && !toolParameters[parameter.id]?.trim(),
+    )
     if (missing) {
       setError(`${missing.label} is required.`)
       return
@@ -349,7 +359,7 @@ export function WritingToolsSheet({
     setError(null)
     setRunning(true)
     try {
-      const nextResult = await runPrototypeTool(selectedTool, context, parameters)
+      const nextResult = await runPrototypeTool(tool, context, toolParameters)
       setResult(nextResult)
       setResultVersion((version) => version + 1)
     } catch (runError) {
@@ -366,6 +376,19 @@ export function WritingToolsSheet({
   }
 
   const categoryDefinition = getProjectCategory(category)
+
+  const showToolDetails = (tool: ToolDefinition): void => {
+    setSelectedTool(tool)
+    setResult(null)
+    setParameters({})
+    setError(null)
+  }
+
+  const launchTool = (tool: ToolDefinition): void => {
+    showToolDetails(tool)
+    const needsConfiguration = tool.parameters?.some((parameter) => parameter.required) ?? false
+    if (!needsConfiguration) void run(tool, {})
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange} modal={isMobile}>
@@ -432,7 +455,8 @@ export function WritingToolsSheet({
                     tool={tool}
                     reason={getRecommendationReason(tool, category, context)}
                     disabledReason={getDisabledReason(tool, context)}
-                    onSelect={() => setSelectedTool(tool)}
+                    onUse={() => launchTool(tool)}
+                    onDetails={() => showToolDetails(tool)}
                   />
                 ))}
                 {visibleTools.length === 0 && (
@@ -487,7 +511,7 @@ export function WritingToolsSheet({
               {error && <Alert variant="destructive"><AlertTitle>Cannot run this tool</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
               <Button onClick={() => void run()} disabled={running} className="sticky bottom-0 min-h-11">
                 {running ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
-                {running ? 'Creating preview…' : 'Run prototype'}
+                {running ? 'Working…' : 'Use tool'}
               </Button>
             </div>
           )}
