@@ -25,6 +25,10 @@ vi.mock('@/pages/AppLayout', () => ({
   AppLayout: () => <div>Application</div>,
 }))
 
+vi.mock('@/pages/PrototypeToolsPage', () => ({
+  PrototypeToolsPage: () => <div>Prototype tools page</div>,
+}))
+
 describe('App account provisioning', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/app')
@@ -40,5 +44,25 @@ describe('App account provisioning', () => {
       /could not initialize your account/i,
     )
     expect(ensureCurrentUser).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('development prototype route', () => {
+  it('renders through a Suspense fallback in development', async () => {
+    window.history.replaceState({}, '', '/prototype/tools')
+
+    render(<App isDevelopment />)
+
+    expect(screen.getByText('Loading prototype…')).toBeInTheDocument()
+    expect(await screen.findByText('Prototype tools page')).toBeInTheDocument()
+  })
+
+  it('is excluded when the production route set is used', () => {
+    window.history.replaceState({}, '', '/prototype/tools')
+
+    render(<App isDevelopment={false} />)
+
+    expect(screen.queryByText('Prototype tools page')).not.toBeInTheDocument()
+    expect(screen.queryByText('Loading prototype…')).not.toBeInTheDocument()
   })
 })

@@ -54,6 +54,7 @@ const editorAdapter: EditorAdapter = {
   getContent: () => ({ type: 'json', data: { type: 'doc' } }),
   setContent: vi.fn(),
   getSelection: () => null,
+  getCursorPosition: () => 1,
   replaceSelection: vi.fn(),
   insertAtCursor: vi.fn(),
   focus: vi.fn(),

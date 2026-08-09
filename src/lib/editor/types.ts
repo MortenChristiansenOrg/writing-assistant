@@ -29,6 +29,7 @@ export interface EditorAdapter {
   getContent(): DocumentContent
   setContent(content: DocumentContent): void
   getSelection(): Selection | null
+  getCursorPosition(): number
   replaceSelection(text: string): void
   insertAtCursor(text: string): void
   focus(): void

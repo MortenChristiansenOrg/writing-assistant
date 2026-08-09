@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useMutation, useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
@@ -7,6 +7,14 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { useAuth } from '@/hooks/useAuth'
 import { LoginPage } from '@/pages/Login'
 import { AppLayout } from '@/pages/AppLayout'
+
+type PrototypeToolsPageModule = typeof import('@/pages/PrototypeToolsPage')
+
+const PrototypeToolsPage = lazy<PrototypeToolsPageModule['PrototypeToolsPage']>(() =>
+  import('@/pages/PrototypeToolsPage').then((module: PrototypeToolsPageModule) => ({
+    default: module.PrototypeToolsPage,
+  })),
+)
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoading, isAuthenticated } = useAuth()
@@ -70,11 +78,25 @@ function CurrentUserGate({
   return null
 }
 
-function App() {
+interface AppProps {
+  isDevelopment?: boolean
+}
+
+function App({ isDevelopment = import.meta.env.DEV }: AppProps = {}) {
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
+          {isDevelopment && (
+            <Route
+              path="/prototype/tools"
+              element={
+                <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading prototype…</div>}>
+                  <PrototypeToolsPage />
+                </Suspense>
+              }
+            />
+          )}
           <Route path="/" element={<AuthGate><Navigate to="/app" replace /></AuthGate>} />
           <Route
             path="/app/*"

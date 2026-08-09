@@ -53,7 +53,7 @@ export function ReviewPanel({
   const activeCount = notes.filter((n) => !n.dismissed).length
 
   return (
-    <div className="review-panel-enter flex h-full w-96 flex-col border-l bg-background">
+    <div className="review-panel-enter absolute inset-0 z-20 flex h-full w-full flex-col bg-background max-md:[&_button]:min-h-11 max-md:[&_button]:min-w-11 md:static md:w-96 md:border-l">
       <div className="flex items-center justify-between border-b px-3 py-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold">Review Notes</h2>

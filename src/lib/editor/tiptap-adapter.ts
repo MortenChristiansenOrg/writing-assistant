@@ -52,6 +52,10 @@ export class TipTapAdapter implements EditorAdapter {
     return { text, from, to }
   }
 
+  getCursorPosition(): number {
+    return this.editor.state.selection.from
+  }
+
   replaceSelection(text: string): void {
     const { from, to } = this.editor.state.selection
     this.replaceRange(from, to, text)

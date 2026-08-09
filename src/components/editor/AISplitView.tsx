@@ -189,13 +189,16 @@ export function AISplitView({
         onFinish={onFinish}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-auto md:flex-row md:overflow-hidden">
         {/* Left panel */}
         <div
-          className="w-1/2 overflow-auto"
+          className="min-h-[50%] w-full overflow-auto md:min-h-0 md:w-1/2"
           style={{ borderRight: '1px solid var(--split-divider)' }}
           onClick={handleLeftClick}
         >
+          <p className="sticky top-0 border-b bg-background/95 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur md:hidden">
+            Original with accepted changes
+          </p>
           <pre
             className="whitespace-pre-wrap p-4 font-sans text-sm leading-relaxed"
             dangerouslySetInnerHTML={{ __html: leftPanelHtml }}
@@ -204,13 +207,16 @@ export function AISplitView({
 
         {/* Right panel */}
         <div
-          className="w-1/2 overflow-auto"
+          className="min-h-[50%] w-full overflow-auto border-t md:min-h-0 md:w-1/2 md:border-t-0"
           style={{
             transform: visible ? 'translateX(0)' : 'translateX(20px)',
             transition: 'transform 300ms ease-out',
           }}
           onClick={handleRightClick}
         >
+          <p className="sticky top-0 border-b bg-background/95 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur md:hidden">
+            Suggested changes
+          </p>
           {isLoading && chunks.length === 0 ? (
             <div className="p-4">
               <div className="space-y-2">

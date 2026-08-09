@@ -26,6 +26,7 @@ export type AIAction =
 interface AIBubbleMenuProps {
   editor: Editor
   onAction?: (action: AIAction, selectedText: string) => void
+  onWritingTool?: (toolId: string) => void
 }
 
 const actions: { action: AIAction; label: string; icon: React.ReactNode }[] = [
@@ -57,7 +58,7 @@ const actions: { action: AIAction; label: string; icon: React.ReactNode }[] = [
   },
 ]
 
-export function AIBubbleMenu({ editor, onAction }: AIBubbleMenuProps) {
+export function AIBubbleMenu({ editor, onAction, onWritingTool }: AIBubbleMenuProps) {
   const handleAction = (action: AIAction) => {
     const { from, to } = editor.state.selection
     const selectedText = editor.state.doc.textBetween(from, to, '\n\n')
@@ -65,7 +66,14 @@ export function AIBubbleMenu({ editor, onAction }: AIBubbleMenuProps) {
   }
 
   return (
-    <DropdownMenu>
+    <div className="flex items-center gap-1">
+      {onWritingTool && (
+        <Button variant="secondary" size="sm" className="h-8" onClick={() => onWritingTool('alternate-pov')}>
+          <Sparkles data-icon="inline-start" />
+          Alternate POV
+        </Button>
+      )}
+      {onAction && <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="h-8 gap-1">
           <Sparkles className="h-4 w-4" />
@@ -81,6 +89,7 @@ export function AIBubbleMenu({ editor, onAction }: AIBubbleMenuProps) {
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>}
+    </div>
   )
 }

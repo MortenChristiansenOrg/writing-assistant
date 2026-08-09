@@ -5,7 +5,7 @@ import type { Doc, Id } from '../../convex/_generated/dataModel'
 import { Editor } from '@/components/editor/Editor'
 import { AISplitView } from '@/components/editor/AISplitView'
 import type { DocumentContent, EditorAdapter } from '@/lib/editor'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { AIAction } from '@/hooks/useAI'
 import { useAISplitSession } from '@/hooks/useAISplitSession'
@@ -14,10 +14,20 @@ import { useReviewNotes } from '@/hooks/useReviewNotes'
 import { useAIFeedback } from '@/hooks/useAIFeedback'
 import { ReviewPanel } from '@/components/review/ReviewPanel'
 import { FeedbackRequestPopover } from '@/components/review/FeedbackRequestPopover'
-import { MessageSquareText } from 'lucide-react'
+import { MessageSquareText, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useSerializedAutosave } from '@/hooks/useSerializedAutosave'
+import {
+  WritingToolsSheet,
+  type ToolApplyRequest,
+} from '@/features/writing-tools/WritingToolsSheet'
+import { readProjectCategory } from '@/features/writing-tools/project-category'
+import type {
+  ProjectCategoryId,
+  ToolContextSnapshot,
+} from '@/features/writing-tools/types'
+import { applyToolText, validateToolApply } from '@/features/writing-tools/draft-apply'
 
 const AUTOSAVE_DELAY = 500
 
@@ -100,10 +110,25 @@ function LoadedEditorPage({
   const [descriptionValue, setDescriptionValue] = useState(
     () => document.description ?? ''
   )
+  const [toolsOpen, setToolsOpen] = useState(false)
+  const [toolContext, setToolContext] = useState<ToolContextSnapshot | null>(null)
+  const [initialToolId, setInitialToolId] = useState<string | null>(null)
+  const [projectCategory, setProjectCategory] = useState<ProjectCategoryId>(() =>
+    readProjectCategory(projectId),
+  )
 
   const session = useAISplitSession()
   const review = useReviewNotes(docId)
   const feedback = useAIFeedback(docId)
+
+  useEffect(() => {
+    const syncCategory = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string }>).detail
+      if (detail.projectId === projectId) setProjectCategory(readProjectCategory(projectId))
+    }
+    window.addEventListener('project-category-changed', syncCategory)
+    return () => window.removeEventListener('project-category-changed', syncCategory)
+  }, [projectId])
 
   const saveDocument = useCallback(
     async (
@@ -160,6 +185,51 @@ function LoadedEditorPage({
   const handleAdapterReady = useCallback((adapter: EditorAdapter) => {
     editorAdapterRef.current = adapter
   }, [])
+
+  const handleOpenWritingTools = useCallback((toolId?: string) => {
+    const adapter = editorAdapterRef.current
+    if (!adapter) return
+    setToolContext({
+      documentText: adapter.getMarkdown(),
+      selection: adapter.getSelection(),
+      cursor: adapter.getCursorPosition(),
+    })
+    setInitialToolId(toolId ?? null)
+    setToolsOpen(true)
+  }, [])
+
+  const handleToolApply = useCallback(async ({
+    operation,
+    text,
+    snapshot,
+  }: ToolApplyRequest): Promise<boolean> => {
+    const adapter = editorAdapterRef.current
+    if (!adapter) return false
+
+    const request = { operation, text, snapshot }
+    const validationError = validateToolApply(adapter, request)
+    if (validationError) {
+      toast.error(validationError)
+      return false
+    }
+
+    try {
+      await createRevision({
+        documentId: docId,
+        content: adapter.getContent().data,
+        changeType: 'ai_rewrite',
+        description: `Writing tool: ${operation}`,
+      })
+    } catch (error) {
+      toast.error('Failed to save revision history')
+      console.error(error)
+      return false
+    }
+
+    applyToolText(adapter, request)
+    toast.success(operation === 'replace' ? 'Selection replaced' : operation === 'insert' ? 'Text inserted' : 'Text appended')
+    return true
+  }, [createRevision, docId])
 
   const handleAIAction = (action: AIAction) => {
     if (!session.hasApiKey) {
@@ -291,10 +361,14 @@ function LoadedEditorPage({
 
   return (
     <div className="flex h-full flex-col">
-      <header className="border-b px-4 py-2">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-medium">{document.title}</h1>
-          <div className="flex items-center gap-2">
+      <header className="border-b px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <h1 className="min-w-0 flex-1 truncate text-base font-medium sm:text-lg">{document.title}</h1>
+          <div className="flex items-center gap-1 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 sm:gap-2">
+            <Button variant={toolsOpen ? 'secondary' : 'outline'} size="sm" onClick={() => handleOpenWritingTools()}>
+              <Wrench data-icon="inline-start" />
+              Tools
+            </Button>
             <FeedbackRequestPopover
               {...(projectId ? { projectId } : {})}
               loading={feedback.loading}
@@ -303,10 +377,11 @@ function LoadedEditorPage({
             <Button
               variant={reviewOpen ? 'secondary' : 'ghost'}
               size="sm"
+              aria-label="Toggle review notes"
               onClick={() => setReviewOpen((open) => !open)}
             >
-              <MessageSquareText className="mr-1.5 h-3.5 w-3.5" />
-              Review
+              <MessageSquareText data-icon="inline-start" />
+              <span className="hidden sm:inline">Review</span>
               {activeNoteCount > 0 && (
                 <span
                   className="ml-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium text-white"
@@ -327,7 +402,7 @@ function LoadedEditorPage({
         />
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="relative flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
           {session.active && (
             <div className="flex-1 overflow-hidden">
@@ -363,6 +438,7 @@ function LoadedEditorPage({
               onChange={handleContentChange}
               onAdapterReady={handleAdapterReady}
               onAIAction={handleAIAction}
+              onWritingTool={(toolId) => handleOpenWritingTools(toolId)}
             />
           </div>
         </div>
@@ -381,6 +457,17 @@ function LoadedEditorPage({
           />
         )}
       </div>
+      {toolContext && (
+        <WritingToolsSheet
+          key={`${toolsOpen ? 'open' : 'closed'}-${projectCategory}-${toolContext.cursor}-${initialToolId ?? 'catalog'}`}
+          open={toolsOpen}
+          onOpenChange={setToolsOpen}
+          category={projectCategory}
+          context={toolContext}
+          initialToolId={initialToolId}
+          onApply={handleToolApply}
+        />
+      )}
     </div>
   )
 }

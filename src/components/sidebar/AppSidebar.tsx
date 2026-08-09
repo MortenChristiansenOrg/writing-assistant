@@ -44,6 +44,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useState } from 'react'
+import { Label } from '@/components/ui/label'
+import { ProjectCategorySelect } from '@/features/writing-tools/ProjectCategorySelect'
+import { writeProjectCategory } from '@/features/writing-tools/project-category'
+import type { ProjectCategoryId } from '@/features/writing-tools/types'
 import {
   ChevronDown,
   FileText,
@@ -70,6 +74,7 @@ export function AppSidebar() {
   const createDocument = useMutation(api.documents.create)
 
   const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectCategory, setNewProjectCategory] = useState<ProjectCategoryId>('general')
   const [newDocName, setNewDocName] = useState('')
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [docDialogOpen, setDocDialogOpen] = useState(false)
@@ -82,7 +87,9 @@ export function AppSidebar() {
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return
     const id = await createProject({ name: newProjectName.trim() })
+    writeProjectCategory(id, newProjectCategory)
     setNewProjectName('')
+    setNewProjectCategory('general')
     setProjectDialogOpen(false)
     navigateFromSidebar(`/app/project/${id}`)
   }
@@ -122,15 +129,29 @@ export function AppSidebar() {
                   e.preventDefault()
                   void handleCreateProject()
                 }}
-                className="space-y-4"
+                className="flex flex-col gap-5"
               >
-                <Input
-                  placeholder="Project name"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  autoFocus
-                />
-                <Button type="submit" className="w-full">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="new-project-name">Name</Label>
+                  <Input
+                    id="new-project-name"
+                    placeholder="Project name"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    autoFocus
+                    className="min-h-11 sm:min-h-0"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="new-project-category">Category</Label>
+                  <ProjectCategorySelect
+                    id="new-project-category"
+                    value={newProjectCategory}
+                    onValueChange={setNewProjectCategory}
+                  />
+                  <p className="text-xs text-muted-foreground">The category recommends tools for this kind of writing. You can change it later.</p>
+                </div>
+                <Button type="submit" className="min-h-11 w-full sm:min-h-0">
                   Create Project
                 </Button>
               </form>
@@ -181,8 +202,9 @@ export function AppSidebar() {
                     value={newDocName}
                     onChange={(e) => setNewDocName(e.target.value)}
                     autoFocus
+                    className="min-h-11 sm:min-h-0"
                   />
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="min-h-11 w-full sm:min-h-0">
                     Create Document
                   </Button>
                 </form>

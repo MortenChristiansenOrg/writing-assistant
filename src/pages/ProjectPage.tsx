@@ -9,6 +9,9 @@ import { Label } from '@/components/ui/label'
 import { PersonaManager } from '@/components/personas/PersonaManager'
 import { useSerializedAutosave } from '@/hooks/useSerializedAutosave'
 import { toast } from 'sonner'
+import { ProjectCategorySelect } from '@/features/writing-tools/ProjectCategorySelect'
+import { readProjectCategory, writeProjectCategory } from '@/features/writing-tools/project-category'
+import type { ProjectCategoryId } from '@/features/writing-tools/types'
 
 const SAVE_DELAY = 500
 
@@ -84,6 +87,7 @@ function LoadedProjectPage({
   const [description, setDescription] = useState(
     () => project.description ?? ''
   )
+  const [category, setCategory] = useState<ProjectCategoryId>(() => readProjectCategory(projectId))
 
   const autosave = useSerializedAutosave<ProjectUpdate>({
     delay: SAVE_DELAY,
@@ -99,7 +103,7 @@ function LoadedProjectPage({
 
   return (
     <div className="h-full overflow-auto">
-      <div className="mx-auto max-w-3xl space-y-8 px-6 py-8">
+      <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
         <div>
           <h1 className="text-2xl font-semibold">Project Settings</h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -107,8 +111,8 @@ function LoadedProjectPage({
           </p>
         </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="project-name">Name</Label>
             <Input
               id="project-name"
@@ -119,7 +123,7 @@ function LoadedProjectPage({
               }}
             />
           </div>
-          <div className="space-y-2">
+          <div className="flex flex-col gap-2">
             <Label htmlFor="project-description">Description</Label>
             <Textarea
               id="project-description"
@@ -134,6 +138,19 @@ function LoadedProjectPage({
               placeholder="Brief description of this project"
               rows={3}
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="project-category">Category</Label>
+            <ProjectCategorySelect
+              id="project-category"
+              value={category}
+              onValueChange={(next) => {
+                setCategory(next)
+                writeProjectCategory(projectId, next)
+                toast.success('Project tools updated')
+              }}
+            />
+            <p className="text-xs text-muted-foreground">Changing category updates the available and recommended tools. It does not alter your writing.</p>
           </div>
         </div>
 

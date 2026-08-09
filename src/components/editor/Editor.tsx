@@ -15,6 +15,7 @@ interface EditorProps {
   onChange?: (content: DocumentContent) => void
   onAdapterReady?: (adapter: EditorAdapter) => void
   onAIAction?: (action: AIAction, selectedText: string) => void
+  onWritingTool?: (toolId: string) => void
   placeholder?: string
   editable?: boolean
   extraExtensions?: import('@tiptap/core').Extension[]
@@ -27,6 +28,7 @@ export function Editor({
   onChange,
   onAdapterReady,
   onAIAction,
+  onWritingTool,
   placeholder = 'Start writing...',
   editable = true,
   extraExtensions = [],
@@ -123,7 +125,13 @@ export function Editor({
         editor={editor}
         className="flex gap-1 rounded-lg border bg-popover p-1 shadow-md"
       >
-        {onAIAction && <AIBubbleMenu editor={editor} onAction={onAIAction} />}
+        {(onAIAction || onWritingTool) && (
+          <AIBubbleMenu
+            editor={editor}
+            {...(onAIAction ? { onAction: onAIAction } : {})}
+            {...(onWritingTool ? { onWritingTool } : {})}
+          />
+        )}
       </BubbleMenu>
       <div className="flex-1 overflow-auto">
         <EditorContent editor={editor} className="h-full" />

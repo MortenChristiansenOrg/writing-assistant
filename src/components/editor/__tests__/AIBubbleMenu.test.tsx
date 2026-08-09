@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render } from '@/test/test-utils'
+import userEvent from '@testing-library/user-event'
+import { render, screen } from '@/test/test-utils'
 import { AIBubbleMenu } from '../AIBubbleMenu'
 import { AIBubbleMenuComponent } from './ai-bubble-menu.component'
 import type { AIAction } from '../AIBubbleMenu'
@@ -115,13 +116,12 @@ describe('AIBubbleMenu', () => {
     expect(mockOnAction).toHaveBeenCalledWith('fix_grammar', 'test text')
   })
 
-  it('works without onAction callback', async () => {
-    render(<AIBubbleMenu editor={mockEditor} />)
+  it('shows the writing shortcut without an inactive AI menu', async () => {
+    const onWritingTool = vi.fn()
+    render(<AIBubbleMenu editor={mockEditor} onWritingTool={onWritingTool} />)
 
-    await component.openDropdown()
-    await component.clickRewrite()
-
-    // Should not throw
-    expect(mockEditor.state.doc.textBetween).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /ai/i })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Alternate POV' }))
+    expect(onWritingTool).toHaveBeenCalledWith('alternate-pov')
   })
 })

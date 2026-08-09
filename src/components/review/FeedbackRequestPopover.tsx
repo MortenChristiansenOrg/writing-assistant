@@ -47,13 +47,13 @@ export function FeedbackRequestPopover({ projectId, loading, onRequest }: Feedba
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" disabled={loading}>
+        <Button variant="outline" size="sm" disabled={loading} aria-label="Request feedback">
           {loading ? (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="animate-spin" data-icon="inline-start" />
           ) : (
-            <MessageSquarePlus className="mr-1.5 h-3.5 w-3.5" />
+            <MessageSquarePlus data-icon="inline-start" />
           )}
-          Feedback
+          <span className="hidden sm:inline">Feedback</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-72 p-2">
@@ -77,7 +77,7 @@ export function FeedbackRequestPopover({ projectId, loading, onRequest }: Feedba
         {personas?.map((p) => (
           <button
             key={p._id}
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50"
+            className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent disabled:opacity-50 sm:min-h-0"
             disabled={loading}
             onClick={() => {
               setOpen(false)

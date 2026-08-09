@@ -60,9 +60,9 @@ export function HistoryPanel({ documentId }: HistoryPanelProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm">
-          <History className="mr-2 h-4 w-4" />
-          History
+        <Button variant="outline" size="sm" aria-label="Open document history">
+          <History data-icon="inline-start" />
+          <span className="hidden sm:inline">History</span>
         </Button>
       </SheetTrigger>
       <SheetContent>
@@ -107,7 +107,7 @@ export function HistoryPanel({ documentId }: HistoryPanelProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full"
+                    className="min-h-11 w-full sm:min-h-0"
                     onClick={() => void handleRestore(revision._id)}
                   >
                     <RotateCcw className="mr-2 h-3 w-3" />

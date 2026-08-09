@@ -6,8 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const {
   mockProject,
   mockToastError,
+  mockToastSuccess,
   mockUpdateProject,
+  mockReadProjectCategory,
+  mockWriteProjectCategory,
   projectId,
+  routeState,
 } = vi.hoisted(() => {
   const id = 'project-test' as Id<'projects'>
   return {
@@ -22,6 +26,17 @@ const {
       updatedAt: 1,
     } satisfies Doc<'projects'>,
     mockToastError: vi.fn(),
+    mockToastSuccess: vi.fn<(message: string) => void>(),
+    mockReadProjectCategory: vi.fn<
+      (projectId: string) => 'general' | 'fiction' | 'screenplay' | 'poetry'
+    >(() => 'general'),
+    mockWriteProjectCategory: vi.fn<
+      (
+        projectId: string,
+        category: 'general' | 'fiction' | 'screenplay' | 'poetry',
+      ) => void
+    >(),
+    routeState: { projectId: id },
     mockUpdateProject: vi.fn<
       (update: {
         id: Id<'projects'>
@@ -38,7 +53,7 @@ vi.mock('react-router-dom', async () => {
   )
   return {
     ...actual,
-    useParams: () => ({ projectId }),
+    useParams: () => ({ projectId: routeState.projectId }),
   }
 })
 
@@ -58,7 +73,36 @@ vi.mock('@/components/personas/PersonaManager', () => ({
 }))
 
 vi.mock('sonner', () => ({
-  toast: { error: mockToastError },
+  toast: { error: mockToastError, success: mockToastSuccess },
+}))
+
+vi.mock('@/features/writing-tools/project-category', () => ({
+  readProjectCategory: mockReadProjectCategory,
+  writeProjectCategory: mockWriteProjectCategory,
+}))
+
+vi.mock('@/features/writing-tools/ProjectCategorySelect', () => ({
+  ProjectCategorySelect: ({
+    value,
+    onValueChange,
+    id,
+  }: {
+    value: string
+    onValueChange: (value: 'general' | 'fiction' | 'screenplay' | 'poetry') => void
+    id?: string
+  }) => (
+    <select
+      id={id}
+      aria-label="Project category"
+      value={value}
+      onChange={(event) => onValueChange(event.target.value as 'general' | 'fiction' | 'screenplay' | 'poetry')}
+    >
+      <option value="general">General writing</option>
+      <option value="fiction">Fiction</option>
+      <option value="screenplay">Screenplay</option>
+      <option value="poetry">Poetry</option>
+    </select>
+  ),
 }))
 
 describe('ProjectPage', () => {
@@ -67,6 +111,12 @@ describe('ProjectPage', () => {
     mockUpdateProject.mockReset()
     mockUpdateProject.mockResolvedValue(undefined)
     mockToastError.mockReset()
+    mockToastSuccess.mockReset()
+    mockReadProjectCategory.mockReset()
+    mockReadProjectCategory.mockReturnValue('general')
+    mockWriteProjectCategory.mockReset()
+    routeState.projectId = projectId
+    mockProject._id = projectId
   })
 
   afterEach(() => {
@@ -143,5 +193,35 @@ describe('ProjectPage', () => {
       id: projectId,
       description: 'Pending navigation edit',
     })
+  })
+
+  it('hydrates and persists the project category', () => {
+    mockReadProjectCategory.mockReturnValue('fiction')
+    render(<ProjectPage />)
+
+    const selector = screen.getByLabelText('Project category')
+    expect(selector).toHaveValue('fiction')
+
+    fireEvent.change(selector, { target: { value: 'screenplay' } })
+
+    expect(selector).toHaveValue('screenplay')
+    expect(mockWriteProjectCategory).toHaveBeenCalledWith(projectId, 'screenplay')
+    expect(mockToastSuccess).toHaveBeenCalledWith('Project tools updated')
+  })
+
+  it('loads the stored category again when switching projects', () => {
+    const secondProjectId = 'project-second' as Id<'projects'>
+    mockReadProjectCategory.mockImplementation((id) =>
+      id === projectId ? 'fiction' : 'poetry',
+    )
+    const view = render(<ProjectPage />)
+    expect(screen.getByLabelText('Project category')).toHaveValue('fiction')
+
+    routeState.projectId = secondProjectId
+    mockProject._id = secondProjectId
+    view.rerender(<ProjectPage />)
+
+    expect(screen.getByLabelText('Project category')).toHaveValue('poetry')
+    expect(mockReadProjectCategory).toHaveBeenLastCalledWith(secondProjectId)
   })
 })
