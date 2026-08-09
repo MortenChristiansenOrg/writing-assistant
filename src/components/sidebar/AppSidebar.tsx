@@ -25,6 +25,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ import {
 
 export function AppSidebar() {
   const { signOut } = useAuth()
+  const { setOpenMobile } = useSidebar()
   const navigate = useNavigate()
   const projectMatch = useMatch('/app/project/:projectId/*')
   const docMatch = useMatch('/app/project/:projectId/doc/:docId')
@@ -72,12 +74,17 @@ export function AppSidebar() {
   const [projectDialogOpen, setProjectDialogOpen] = useState(false)
   const [docDialogOpen, setDocDialogOpen] = useState(false)
 
+  const navigateFromSidebar = (path: string): void => {
+    setOpenMobile(false)
+    navigate(path)
+  }
+
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) return
     const id = await createProject({ name: newProjectName.trim() })
     setNewProjectName('')
     setProjectDialogOpen(false)
-    navigate(`/app/project/${id}`)
+    navigateFromSidebar(`/app/project/${id}`)
   }
 
   const handleCreateDocument = async () => {
@@ -88,7 +95,7 @@ export function AppSidebar() {
     })
     setNewDocName('')
     setDocDialogOpen(false)
-    navigate(`/app/project/${projectId}/doc/${id}`)
+    navigateFromSidebar(`/app/project/${projectId}/doc/${id}`)
   }
 
   return (
@@ -135,7 +142,9 @@ export function AppSidebar() {
               {(projects as Project[] | undefined)?.map((project: Project) => (
                 <SidebarMenuItem key={project._id}>
                   <SidebarMenuButton
-                    onClick={() => navigate(`/app/project/${project._id}`)}
+                    onClick={() =>
+                      navigateFromSidebar(`/app/project/${project._id}`)
+                    }
                     isActive={projectId === project._id}
                   >
                     <FolderOpen className="h-4 w-4" />
@@ -186,7 +195,9 @@ export function AppSidebar() {
                   <SidebarMenuItem key={doc._id}>
                     <SidebarMenuButton
                       onClick={() =>
-                        navigate(`/app/project/${projectId}/doc/${doc._id}`)
+                        navigateFromSidebar(
+                          `/app/project/${projectId}/doc/${doc._id}`,
+                        )
                       }
                       isActive={docId === doc._id}
                     >
@@ -213,12 +224,19 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" className="w-48">
-                <DropdownMenuItem onClick={() => navigate('/app/settings')}>
+                <DropdownMenuItem
+                  onClick={() => navigateFromSidebar('/app/settings')}
+                >
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => void signOut()}>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setOpenMobile(false)
+                    void signOut()
+                  }}
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign out
                 </DropdownMenuItem>

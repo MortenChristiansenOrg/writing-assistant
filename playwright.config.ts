@@ -29,7 +29,8 @@ export default defineConfig({
     },
     {
       name: 'authenticated',
-      testMatch: /(ai-flow|ai-rewrite|document-creation)\.spec\.ts/,
+      testMatch:
+        /(ai-flow|ai-rewrite|document-creation|mobile-navigation)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.clerk/user.json',
