@@ -1,12 +1,14 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { auth } from './auth'
+import { getActiveOwnedDocument, getCurrentUserId } from './model/auth'
 
 export const list = query({
   args: { documentId: v.id('documents') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
+
+    if (!(await getActiveOwnedDocument(ctx, args.documentId, userId))) return []
 
     return await ctx.db
       .query('reviewNotes')
@@ -37,11 +39,12 @@ export const createBatch = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
-    const doc = await ctx.db.get(args.documentId)
-    if (!doc || doc.userId !== userId) throw new Error('Document not found')
+    if (!(await getActiveOwnedDocument(ctx, args.documentId, userId))) {
+      throw new Error('Document not found')
+    }
 
     const now = Date.now()
     for (const note of args.notes) {
@@ -70,17 +73,22 @@ export const update = mutation({
       v.literal('suggestion'),
       v.literal('warning')
     ),
+    category: v.union(v.string(), v.null()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const note = await ctx.db.get(args.id)
     if (!note || note.userId !== userId) throw new Error('Not found')
+    if (!(await getActiveOwnedDocument(ctx, note.documentId, userId))) {
+      throw new Error('Not found')
+    }
 
     await ctx.db.patch(args.id, {
       comment: args.comment,
       severity: args.severity,
+      category: args.category ?? undefined,
     })
   },
 })
@@ -88,11 +96,14 @@ export const update = mutation({
 export const dismiss = mutation({
   args: { id: v.id('reviewNotes') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const note = await ctx.db.get(args.id)
     if (!note || note.userId !== userId) throw new Error('Not found')
+    if (!(await getActiveOwnedDocument(ctx, note.documentId, userId))) {
+      throw new Error('Not found')
+    }
 
     await ctx.db.patch(args.id, { dismissed: true })
   },
@@ -101,11 +112,14 @@ export const dismiss = mutation({
 export const undismiss = mutation({
   args: { id: v.id('reviewNotes') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const note = await ctx.db.get(args.id)
     if (!note || note.userId !== userId) throw new Error('Not found')
+    if (!(await getActiveOwnedDocument(ctx, note.documentId, userId))) {
+      throw new Error('Not found')
+    }
 
     await ctx.db.patch(args.id, { dismissed: false })
   },
@@ -114,8 +128,12 @@ export const undismiss = mutation({
 export const deleteForDocument = mutation({
   args: { documentId: v.id('documents') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
+
+    if (!(await getActiveOwnedDocument(ctx, args.documentId, userId))) {
+      throw new Error('Document not found')
+    }
 
     const notes = await ctx.db
       .query('reviewNotes')

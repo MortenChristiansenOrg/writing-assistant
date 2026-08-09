@@ -5,6 +5,7 @@ import {
   createAuthenticatedContext,
   createTestProject,
   createTestDocument,
+  finishScheduledFunctions,
 } from './setup'
 
 describe('documents', () => {
@@ -35,8 +36,8 @@ describe('documents', () => {
     it('returns documents for authenticated user', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      await createTestDocument(t, userId, projectId as string)
-      await createTestDocument(t, userId, projectId as string)
+      await createTestDocument(t, userId, projectId)
+      await createTestDocument(t, userId, projectId)
 
       const docs = await asUser.query(api.documents.list, { projectId })
       expect(docs).toHaveLength(2)
@@ -46,8 +47,8 @@ describe('documents', () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
 
-      const doc1 = await createTestDocument(t, userId, projectId as string)
-      const doc2 = await createTestDocument(t, userId, projectId as string)
+      const doc1 = await createTestDocument(t, userId, projectId)
+      const doc2 = await createTestDocument(t, userId, projectId)
 
       // Update doc1 to be newer
       await t.run(async (ctx) => {
@@ -64,7 +65,7 @@ describe('documents', () => {
     it('returns null when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const doc = await t.query(api.documents.get, { id: docId })
       expect(doc).toBeNull()
@@ -74,7 +75,7 @@ describe('documents', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const doc = await asUser2.query(api.documents.get, { id: docId })
       expect(doc).toBeNull()
@@ -83,7 +84,7 @@ describe('documents', () => {
     it('returns document for authenticated user', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const doc = await asUser.query(api.documents.get, { id: docId })
       expect(doc).not.toBeNull()
@@ -94,7 +95,7 @@ describe('documents', () => {
     it('returns null for deleted document', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       // Delete the document directly
       await t.run(async (ctx) => {
@@ -186,7 +187,7 @@ describe('documents', () => {
     it('throws when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await expect(
         t.mutation(api.documents.update, {
@@ -200,7 +201,7 @@ describe('documents', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await expect(
         asUser2.mutation(api.documents.update, {
@@ -213,7 +214,7 @@ describe('documents', () => {
     it('throws for deleted document', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await t.run(async (ctx) => {
         await ctx.db.delete(docId)
@@ -230,7 +231,7 @@ describe('documents', () => {
     it('updates document title', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await asUser.mutation(api.documents.update, {
         id: docId,
@@ -244,7 +245,7 @@ describe('documents', () => {
     it('updates document content', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const newContent = { type: 'doc', content: [{ type: 'blockquote' }] }
 
       await asUser.mutation(api.documents.update, {
@@ -259,7 +260,7 @@ describe('documents', () => {
     it('updates project updatedAt timestamp', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const projectBefore = await t.run(async (ctx) => ctx.db.get(projectId))
 
@@ -277,7 +278,7 @@ describe('documents', () => {
     it('throws when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await expect(t.mutation(api.documents.remove, { id: docId })).rejects.toThrow(
         'Unauthorized'
@@ -288,7 +289,7 @@ describe('documents', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await expect(asUser2.mutation(api.documents.remove, { id: docId })).rejects.toThrow(
         'Document not found'
@@ -298,7 +299,7 @@ describe('documents', () => {
     it('throws for deleted document', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await t.run(async (ctx) => {
         await ctx.db.delete(docId)
@@ -312,7 +313,7 @@ describe('documents', () => {
     it('removes document', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await asUser.mutation(api.documents.remove, { id: docId })
 
@@ -323,20 +324,20 @@ describe('documents', () => {
     it('removes associated revisions', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       // Create some revisions
       await t.run(async (ctx) => {
         await ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 1000,
         })
         await ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 2000,
@@ -344,6 +345,7 @@ describe('documents', () => {
       })
 
       await asUser.mutation(api.documents.remove, { id: docId })
+      await finishScheduledFunctions(t)
 
       const revisions = await t.run(async (ctx) =>
         ctx.db
@@ -352,6 +354,68 @@ describe('documents', () => {
           .collect()
       )
       expect(revisions).toHaveLength(0)
+    })
+
+    it('removes large dependent collections in bounded scheduled batches', async () => {
+      const { asUser, userId } = await createAuthenticatedContext(t)
+      const projectId = await createTestProject(t, userId)
+      const docId = await createTestDocument(t, userId, projectId)
+
+      await t.run(async (ctx) => {
+        const revisionId = await ctx.db.insert('revisions', {
+          documentId: docId,
+          userId,
+          content: { type: 'doc' },
+          changeType: 'manual',
+          createdAt: 1000,
+        })
+        for (let index = 0; index < 70; index += 1) {
+          await ctx.db.insert('aiFeedback', {
+            revisionId,
+            userId,
+            originalText: 'before',
+            suggestedText: 'after',
+            prompt: 'rewrite',
+            model: 'test/model',
+            status: 'pending',
+            createdAt: index,
+          })
+          await ctx.db.insert('reviewNotes', {
+            documentId: docId,
+            userId,
+            personaName: 'Reviewer',
+            model: 'test/model',
+            comment: `Note ${index}`,
+            severity: 'suggestion',
+            dismissed: false,
+            createdAt: index,
+          })
+        }
+      })
+
+      await asUser.mutation(api.documents.remove, { id: docId })
+      expect(await asUser.query(api.documents.get, { id: docId })).toBeNull()
+
+      await finishScheduledFunctions(t)
+
+      const remaining = await t.run(async (ctx) => ({
+        document: await ctx.db.get(docId),
+        revisions: await ctx.db
+          .query('revisions')
+          .withIndex('by_document', (q) => q.eq('documentId', docId))
+          .collect(),
+        notes: await ctx.db
+          .query('reviewNotes')
+          .withIndex('by_document', (q) => q.eq('documentId', docId))
+          .collect(),
+        feedback: await ctx.db.query('aiFeedback').collect(),
+      }))
+      expect(remaining).toEqual({
+        document: null,
+        revisions: [],
+        notes: [],
+        feedback: [],
+      })
     })
   })
 })

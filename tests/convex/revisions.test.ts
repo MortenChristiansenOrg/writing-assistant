@@ -18,7 +18,7 @@ describe('revisions', () => {
     it('returns empty array when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const revisions = await t.query(api.revisions.list, { documentId: docId })
       expect(revisions).toEqual([])
@@ -28,7 +28,7 @@ describe('revisions', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const revisions = await asUser2.query(api.revisions.list, { documentId: docId })
       expect(revisions).toEqual([])
@@ -37,20 +37,20 @@ describe('revisions', () => {
     it('returns revisions for authenticated user', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       // Create revisions
       await t.run(async (ctx) => {
         await ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc', version: 1 },
           changeType: 'manual',
           createdAt: 1000,
         })
         await ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc', version: 2 },
           changeType: 'ai_rewrite',
           createdAt: 2000,
@@ -64,12 +64,12 @@ describe('revisions', () => {
     it('orders revisions by createdAt descending', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const rev1 = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc', version: 1 },
           changeType: 'manual',
           createdAt: 1000,
@@ -78,7 +78,7 @@ describe('revisions', () => {
       const rev2 = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc', version: 2 },
           changeType: 'manual',
           createdAt: 2000,
@@ -95,11 +95,11 @@ describe('revisions', () => {
     it('returns null when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 1000,
@@ -114,11 +114,11 @@ describe('revisions', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 1000,
@@ -132,11 +132,11 @@ describe('revisions', () => {
     it('returns revision for authenticated user', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc', test: true },
           changeType: 'ai_insert',
           description: 'Test revision',
@@ -154,11 +154,11 @@ describe('revisions', () => {
     it('returns null for deleted revision', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 1000,
@@ -178,7 +178,7 @@ describe('revisions', () => {
     it('throws when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await expect(
         t.mutation(api.revisions.create, {
@@ -193,7 +193,7 @@ describe('revisions', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await expect(
         asUser2.mutation(api.revisions.create, {
@@ -207,7 +207,7 @@ describe('revisions', () => {
     it('throws for deleted document', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       await t.run(async (ctx) => {
         await ctx.db.delete(docId)
@@ -225,7 +225,7 @@ describe('revisions', () => {
     it('creates revision with required fields', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const revId = await asUser.mutation(api.revisions.create, {
         documentId: docId,
@@ -241,7 +241,7 @@ describe('revisions', () => {
     it('creates revision with description', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const revId = await asUser.mutation(api.revisions.create, {
         documentId: docId,
@@ -257,7 +257,7 @@ describe('revisions', () => {
     it('supports all changeType values', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const changeTypes = ['manual', 'ai_rewrite', 'ai_insert', 'restore'] as const
       for (const changeType of changeTypes) {
@@ -276,11 +276,11 @@ describe('revisions', () => {
     it('throws when not authenticated', async () => {
       const { userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc', old: true },
           changeType: 'manual',
           createdAt: 1000,
@@ -296,11 +296,11 @@ describe('revisions', () => {
       const { userId } = await createAuthenticatedContext(t)
       const { asUser: asUser2 } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 1000,
@@ -315,11 +315,11 @@ describe('revisions', () => {
     it('throws for deleted revision', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: { type: 'doc' },
           changeType: 'manual',
           createdAt: 1000,
@@ -338,13 +338,13 @@ describe('revisions', () => {
     it('restores document content from revision', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       const oldContent = { type: 'doc', content: [{ type: 'paragraph', text: 'old' }] }
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: oldContent,
           changeType: 'manual',
           createdAt: 1000,
@@ -360,7 +360,7 @@ describe('revisions', () => {
     it('creates a restore revision with current content', async () => {
       const { asUser, userId } = await createAuthenticatedContext(t)
       const projectId = await createTestProject(t, userId)
-      const docId = await createTestDocument(t, userId, projectId as string)
+      const docId = await createTestDocument(t, userId, projectId)
 
       // Get current content
       const currentDoc = await asUser.query(api.documents.get, { id: docId })
@@ -370,7 +370,7 @@ describe('revisions', () => {
       const revId = await t.run(async (ctx) =>
         ctx.db.insert('revisions', {
           documentId: docId,
-          userId: userId as never,
+          userId: userId,
           content: oldContent,
           changeType: 'manual',
           createdAt: 1000,

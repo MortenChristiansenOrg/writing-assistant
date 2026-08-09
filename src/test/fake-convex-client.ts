@@ -50,7 +50,7 @@ export class FakeConvexClient {
   )
 
   // Mock mutation
-  mutation = vi.fn(async (mutation: { name?: string }, _args: unknown) => {
+  mutation = vi.fn(async (mutation: { name?: string }) => {
     const mutationName = mutation?.name || 'unknown'
     if (this.mutationResults.has(mutationName)) {
       return this.mutationResults.get(mutationName)

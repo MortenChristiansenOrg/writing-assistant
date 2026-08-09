@@ -7,21 +7,19 @@ vi.mock('convex/react', () => ({
   useConvexAuth: vi.fn(),
 }))
 
-vi.mock('@convex-dev/auth/react', () => ({
-  useAuthActions: vi.fn(),
+vi.mock('@clerk/react', () => ({
+  useClerk: vi.fn(),
 }))
 
 import { useConvexAuth } from 'convex/react'
-import { useAuthActions } from '@convex-dev/auth/react'
+import { useClerk } from '@clerk/react'
 
 describe('useAuth', () => {
-  const mockSignIn = vi.fn()
   const mockSignOut = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    ;(useAuthActions as ReturnType<typeof vi.fn>).mockReturnValue({
-      signIn: mockSignIn,
+    ;(useClerk as ReturnType<typeof vi.fn>).mockReturnValue({
       signOut: mockSignOut,
     })
   })
@@ -75,21 +73,8 @@ describe('useAuth', () => {
     })
   })
 
-  describe('signIn', () => {
-    it('exposes signIn function from useAuthActions', () => {
-      ;(useConvexAuth as ReturnType<typeof vi.fn>).mockReturnValue({
-        isLoading: false,
-        isAuthenticated: false,
-      })
-
-      const { result } = renderHook(() => useAuth())
-
-      expect(result.current.signIn).toBe(mockSignIn)
-    })
-  })
-
   describe('signOut', () => {
-    it('exposes signOut function from useAuthActions', () => {
+    it('exposes signOut function from Clerk', () => {
       ;(useConvexAuth as ReturnType<typeof vi.fn>).mockReturnValue({
         isLoading: false,
         isAuthenticated: true,

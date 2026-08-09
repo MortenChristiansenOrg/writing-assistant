@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 describe('convex-url', () => {
   beforeEach(() => {
     vi.resetModules()
+    vi.stubEnv('VITE_CLERK_PUBLISHABLE_KEY', 'pk_test_example')
+    vi.stubEnv('VITE_CONVEX_SITE_URL', '')
   })
 
   afterEach(() => {
@@ -16,7 +18,7 @@ describe('convex-url', () => {
   })
 
   it('handles prod URLs', async () => {
-    vi.stubEnv('VITE_CONVEX_URL', 'https://my-prod-app.convex.cloud')
+    vi.stubEnv('VITE_CONVEX_URL', 'https://my-prod-app.convex.cloud/')
     const { convexSiteUrl } = await import('../convex-url')
     expect(convexSiteUrl).toBe('https://my-prod-app.convex.site')
   })
@@ -26,9 +28,24 @@ describe('convex-url', () => {
     await expect(import('../convex-url')).rejects.toThrow('VITE_CONVEX_URL')
   })
 
-  it('handles URLs without .convex.cloud', async () => {
+  it('requires an explicit site URL outside Convex Cloud', async () => {
     vi.stubEnv('VITE_CONVEX_URL', 'https://localhost:3000')
+    await expect(import('../convex-url')).rejects.toThrow(
+      'VITE_CONVEX_SITE_URL',
+    )
+  })
+
+  it('uses the explicit local HTTP action URL', async () => {
+    vi.stubEnv('VITE_CONVEX_URL', 'http://127.0.0.1:3210')
+    vi.stubEnv('VITE_CONVEX_SITE_URL', 'http://127.0.0.1:3211/')
     const { convexSiteUrl } = await import('../convex-url')
-    expect(convexSiteUrl).toBe('https://localhost:3000')
+    expect(convexSiteUrl).toBe('http://127.0.0.1:3211')
+  })
+
+  it('prefers an explicit site URL over a derived cloud URL', async () => {
+    vi.stubEnv('VITE_CONVEX_URL', 'https://test-project.convex.cloud')
+    vi.stubEnv('VITE_CONVEX_SITE_URL', 'https://custom.example.com/')
+    const { convexSiteUrl } = await import('../convex-url')
+    expect(convexSiteUrl).toBe('https://custom.example.com')
   })
 })

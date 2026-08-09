@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
-import { api } from '../../convex/_generated/api'
+import { api, internal } from '../../convex/_generated/api'
 import { createTestContext, createAuthenticatedContext } from './setup'
 
 describe('spending', () => {
@@ -40,7 +40,7 @@ describe('spending', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-15',
           model: 'anthropic/claude-3.5-sonnet',
           inputTokens: 1000,
@@ -48,7 +48,7 @@ describe('spending', () => {
           totalCost: 0.01,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-15',
           model: 'openai/gpt-4o',
           inputTokens: 2000,
@@ -69,7 +69,7 @@ describe('spending', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-15',
           model: 'test',
           inputTokens: 1000,
@@ -77,7 +77,7 @@ describe('spending', () => {
           totalCost: 0.01,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-14',
           model: 'test',
           inputTokens: 5000,
@@ -97,7 +97,7 @@ describe('spending', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-15',
           model: 'test',
           inputTokens: 1000,
@@ -105,7 +105,7 @@ describe('spending', () => {
           totalCost: 0.01,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId2 as never,
+          userId: userId2,
           date: '2025-01-15',
           model: 'test',
           inputTokens: 5000,
@@ -144,7 +144,7 @@ describe('spending', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-10',
           model: 'test1',
           inputTokens: 1000,
@@ -152,7 +152,7 @@ describe('spending', () => {
           totalCost: 0.01,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-10',
           model: 'test2',
           inputTokens: 2000,
@@ -160,7 +160,7 @@ describe('spending', () => {
           totalCost: 0.02,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-15',
           model: 'test1',
           inputTokens: 500,
@@ -192,7 +192,7 @@ describe('spending', () => {
 
       await t.run(async (ctx) => {
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-05',
           model: 'test',
           inputTokens: 1000,
@@ -200,7 +200,7 @@ describe('spending', () => {
           totalCost: 0.01,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-10',
           model: 'test',
           inputTokens: 2000,
@@ -208,7 +208,7 @@ describe('spending', () => {
           totalCost: 0.02,
         })
         await ctx.db.insert('spendingSessions', {
-          userId: userId as never,
+          userId: userId,
           date: '2025-01-20',
           model: 'test',
           inputTokens: 3000,
@@ -227,140 +227,101 @@ describe('spending', () => {
     })
   })
 
-  describe('record', () => {
-    it('throws when not authenticated', async () => {
+  describe('recordUsage', () => {
+    it('rejects an unknown server-derived identity', async () => {
       await expect(
-        t.mutation(api.spending.record, {
+        t.mutation(internal.spending.recordUsage, {
+          tokenIdentifier: 'https://clerk.test|missing',
           model: 'test',
           inputTokens: 1000,
           outputTokens: 500,
+          totalCost: 0.01,
         })
       ).rejects.toThrow('Unauthorized')
     })
 
-    it('creates new session when none exists', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
+    it('records provider-reported usage and cost', async () => {
+      const { asUser, tokenIdentifier } = await createAuthenticatedContext(t)
 
-      const result = await asUser.mutation(api.spending.record, {
-        model: 'anthropic/claude-3.5-sonnet',
+      const result = await t.mutation(internal.spending.recordUsage, {
+        tokenIdentifier,
+        model: 'anthropic/claude-sonnet-4',
         inputTokens: 1000,
         outputTokens: 500,
+        totalCost: 0.0105,
       })
 
-      expect(result.totalCost).toBeGreaterThan(0)
+      expect(result.totalCost).toBe(0.0105)
 
       const today = await asUser.query(api.spending.getToday, {})
       expect(today?.sessions).toHaveLength(1)
       expect(today?.sessions[0].inputTokens).toBe(1000)
       expect(today?.sessions[0].outputTokens).toBe(500)
+      expect(today?.sessions[0].totalCost).toBe(0.0105)
     })
 
     it('updates existing session for same model on same day', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
+      const { asUser, tokenIdentifier } = await createAuthenticatedContext(t)
 
-      await asUser.mutation(api.spending.record, {
-        model: 'anthropic/claude-3.5-sonnet',
+      await t.mutation(internal.spending.recordUsage, {
+        tokenIdentifier,
+        model: 'anthropic/claude-sonnet-4',
         inputTokens: 1000,
         outputTokens: 500,
+        totalCost: 0.01,
       })
 
-      await asUser.mutation(api.spending.record, {
-        model: 'anthropic/claude-3.5-sonnet',
+      await t.mutation(internal.spending.recordUsage, {
+        tokenIdentifier,
+        model: 'anthropic/claude-sonnet-4',
         inputTokens: 2000,
         outputTokens: 1000,
+        totalCost: 0.02,
       })
 
       const today = await asUser.query(api.spending.getToday, {})
       expect(today?.sessions).toHaveLength(1)
       expect(today?.sessions[0].inputTokens).toBe(3000)
       expect(today?.sessions[0].outputTokens).toBe(1500)
+      expect(today?.sessions[0].totalCost).toBeCloseTo(0.03)
     })
 
     it('creates separate sessions for different models', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
+      const { asUser, tokenIdentifier } = await createAuthenticatedContext(t)
 
-      await asUser.mutation(api.spending.record, {
-        model: 'anthropic/claude-3.5-sonnet',
+      await t.mutation(internal.spending.recordUsage, {
+        tokenIdentifier,
+        model: 'anthropic/claude-sonnet-4',
         inputTokens: 1000,
         outputTokens: 500,
+        totalCost: 0.01,
       })
 
-      await asUser.mutation(api.spending.record, {
+      await t.mutation(internal.spending.recordUsage, {
+        tokenIdentifier,
         model: 'openai/gpt-4o',
         inputTokens: 2000,
         outputTokens: 1000,
+        totalCost: 0.02,
       })
 
       const today = await asUser.query(api.spending.getToday, {})
       expect(today?.sessions).toHaveLength(2)
     })
-  })
 
-  describe('cost calculation', () => {
-    it('calculates cost for claude-3.5-sonnet correctly', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
-
-      // claude-3.5-sonnet: input $3/1M, output $15/1M
-      const result = await asUser.mutation(api.spending.record, {
-        model: 'anthropic/claude-3.5-sonnet',
-        inputTokens: 1_000_000,
-        outputTokens: 1_000_000,
+    it('clamps a negative provider cost', async () => {
+      const { asUser, tokenIdentifier } = await createAuthenticatedContext(t)
+      const result = await t.mutation(internal.spending.recordUsage, {
+        tokenIdentifier,
+        model: 'test/model',
+        inputTokens: 1,
+        outputTokens: 1,
+        totalCost: -5,
       })
-
-      expect(result.totalCost).toBe(18) // $3 + $15
-    })
-
-    it('calculates cost for gpt-4o correctly', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
-
-      // gpt-4o: input $2.5/1M, output $10/1M
-      const result = await asUser.mutation(api.spending.record, {
-        model: 'openai/gpt-4o',
-        inputTokens: 1_000_000,
-        outputTokens: 1_000_000,
-      })
-
-      expect(result.totalCost).toBe(12.5) // $2.5 + $10
-    })
-
-    it('calculates cost for gpt-4o-mini correctly', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
-
-      // gpt-4o-mini: input $0.15/1M, output $0.6/1M
-      const result = await asUser.mutation(api.spending.record, {
-        model: 'openai/gpt-4o-mini',
-        inputTokens: 1_000_000,
-        outputTokens: 1_000_000,
-      })
-
-      expect(result.totalCost).toBe(0.75) // $0.15 + $0.6
-    })
-
-    it('uses default cost for unknown models', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
-
-      // default: input $1/1M, output $3/1M
-      const result = await asUser.mutation(api.spending.record, {
-        model: 'unknown/model',
-        inputTokens: 1_000_000,
-        outputTokens: 1_000_000,
-      })
-
-      expect(result.totalCost).toBe(4) // $1 + $3
-    })
-
-    it('calculates cost proportionally for smaller token counts', async () => {
-      const { asUser } = await createAuthenticatedContext(t)
-
-      // claude-3.5-sonnet: input $3/1M, output $15/1M
-      // 1000 tokens = $0.003 input, 500 tokens = $0.0075 output
-      const result = await asUser.mutation(api.spending.record, {
-        model: 'anthropic/claude-3.5-sonnet',
-        inputTokens: 1000,
-        outputTokens: 500,
-      })
-
-      expect(result.totalCost).toBeCloseTo(0.0105, 5)
+      expect(result.totalCost).toBe(0)
+      const today = await asUser.query(api.spending.getToday, {})
+      expect(today?.totalCost).toBe(0)
+      expect(today?.sessions[0]?.totalCost).toBe(0)
     })
   })
 })

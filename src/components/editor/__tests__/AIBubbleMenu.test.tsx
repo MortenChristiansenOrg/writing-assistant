@@ -24,7 +24,7 @@ describe('AIBubbleMenu', () => {
   beforeEach(() => {
     component = new AIBubbleMenuComponent()
     mockEditor = createMockEditor()
-    mockOnAction = vi.fn() as any
+    mockOnAction = vi.fn<(action: AIAction, selectedText: string) => void>()
   })
 
   it('renders trigger button', () => {

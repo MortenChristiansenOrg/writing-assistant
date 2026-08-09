@@ -1,52 +1,23 @@
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
+import { useState, type ReactElement } from 'react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { PersonaManager } from '@/components/personas/PersonaManager'
+import { useSerializedAutosave } from '@/hooks/useSerializedAutosave'
+import { toast } from 'sonner'
 
 const SAVE_DELAY = 500
 
-export function ProjectPage() {
+export function ProjectPage(): ReactElement {
   const { projectId } = useParams()
   const project = useQuery(
     api.projects.get,
     projectId ? { id: projectId as Id<'projects'> } : 'skip'
   )
-  const updateProject = useMutation(api.projects.update)
-
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [initialized, setInitialized] = useState(false)
-  const saveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    if (project && !initialized) {
-      setName(project.name)
-      setDescription(project.description ?? '')
-      setInitialized(true)
-    }
-  }, [project, initialized])
-
-  // Reset when projectId changes
-  useEffect(() => {
-    setInitialized(false)
-  }, [projectId])
-
-  const save = useCallback(
-    (fields: { name?: string; description?: string }) => {
-      if (!projectId) return
-      if (saveRef.current) clearTimeout(saveRef.current)
-      saveRef.current = setTimeout(() => {
-        void updateProject({ id: projectId as Id<'projects'>, ...fields })
-      }, SAVE_DELAY)
-    },
-    [projectId, updateProject]
-  )
-
   if (!projectId) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -71,47 +42,105 @@ export function ProjectPage() {
     )
   }
 
+  if (project._id !== projectId) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  return (
+    <LoadedProjectPage
+      key={projectId}
+      projectId={projectId as Id<'projects'>}
+      project={project}
+    />
+  )
+}
+
+interface ProjectUpdate {
+  id: Id<'projects'>
+  name?: string
+  description?: string
+}
+
+function mergeProjectUpdates(
+  current: ProjectUpdate,
+  next: ProjectUpdate
+): ProjectUpdate {
+  return { ...current, ...next }
+}
+
+function LoadedProjectPage({
+  projectId,
+  project,
+}: {
+  projectId: Id<'projects'>
+  project: Doc<'projects'>
+}): ReactElement {
+  const updateProject = useMutation(api.projects.update)
+  const [name, setName] = useState(() => project.name)
+  const [description, setDescription] = useState(
+    () => project.description ?? ''
+  )
+
+  const autosave = useSerializedAutosave<ProjectUpdate>({
+    delay: SAVE_DELAY,
+    merge: mergeProjectUpdates,
+    save: async (value) => {
+      await updateProject(value)
+    },
+    onError: (error) => {
+      toast.error('Failed to save project')
+      console.error(error)
+    },
+  })
+
   return (
     <div className="h-full overflow-auto">
-    <div className="mx-auto max-w-3xl space-y-8 px-6 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold">Project Settings</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure your project and manage project-specific personas
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="project-name">Name</Label>
-          <Input
-            id="project-name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value)
-              save({ name: e.target.value })
-            }}
-          />
+      <div className="mx-auto max-w-3xl space-y-8 px-6 py-8">
+        <div>
+          <h1 className="text-2xl font-semibold">Project Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Configure your project and manage project-specific personas
+          </p>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="project-description">Description</Label>
-          <Textarea
-            id="project-description"
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value)
-              save({ description: e.target.value })
-            }}
-            placeholder="Brief description of this project"
-            rows={3}
-          />
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="project-name">Name</Label>
+            <Input
+              id="project-name"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                autosave.schedule({ id: projectId, name: e.target.value })
+              }}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="project-description">Description</Label>
+            <Textarea
+              id="project-description"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value)
+                autosave.schedule({
+                  id: projectId,
+                  description: e.target.value,
+                })
+              }}
+              placeholder="Brief description of this project"
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <div className="border-t pt-6">
+          <PersonaManager projectId={projectId} />
         </div>
       </div>
-
-      <div className="border-t pt-6">
-        <PersonaManager projectId={projectId as Id<'projects'>} />
-      </div>
-    </div>
     </div>
   )
 }

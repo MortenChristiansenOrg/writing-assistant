@@ -20,7 +20,7 @@ export class BasePage {
   async getToastMessage(): Promise<string> {
     const toast = this.page.locator('[data-sonner-toast]').first()
     await toast.waitFor({ state: 'visible', timeout: 5000 })
-    return toast.textContent() ?? ''
+    return (await toast.textContent()) ?? ''
   }
 
   async waitForNavigation(url: string | RegExp) {

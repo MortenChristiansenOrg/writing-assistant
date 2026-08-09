@@ -23,15 +23,12 @@ export const DiffDecorationExtension = Extension.create<DiffDecorationOptions>({
   },
 
   addProseMirrorPlugins() {
-    const extensionThis = this
-
     return [
       new Plugin({
         key: diffDecorationKey,
         props: {
-          decorations(state) {
-            const { chunks, selectionFrom, selectionTo } =
-              extensionThis.options
+          decorations: (state) => {
+            const { chunks, selectionFrom, selectionTo } = this.options
             const decorations: Decoration[] = []
             const docSize = state.doc.content.size
 

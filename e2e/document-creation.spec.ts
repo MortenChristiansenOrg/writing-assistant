@@ -5,7 +5,7 @@ test.describe('Document Creation', () => {
   test('create project and document', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
@@ -31,7 +31,7 @@ test.describe('Document Creation', () => {
   test('type in editor and verify content', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
@@ -52,7 +52,7 @@ test.describe('Document Creation', () => {
   test('word count updates while typing', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
@@ -73,7 +73,7 @@ test.describe('Document Creation', () => {
   test('autosave triggers after typing', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
@@ -100,7 +100,7 @@ test.describe('Document Creation', () => {
   test('content persists after reload', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
@@ -133,7 +133,7 @@ test.describe('Document Creation', () => {
   test('multiple documents maintain separate content', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)

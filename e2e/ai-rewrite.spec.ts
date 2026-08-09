@@ -25,7 +25,7 @@ async function mockAIStream(page: Page) {
       // default to rewrite
     }
 
-    const text = MOCK_RESPONSES[action] ?? MOCK_RESPONSES.rewrite
+    const text = MOCK_RESPONSES[action] ?? MOCK_RESPONSES.rewrite!
 
     await route.fulfill({
       status: 200,
@@ -39,7 +39,7 @@ async function mockAIStream(page: Page) {
 async function setupUser(page: Page) {
   const loginPage = new LoginPage(page)
   await loginPage.goto()
-  await loginPage.loginAsTestUser('Alice')
+  await loginPage.continueAsTestUser()
 
   // Navigate to settings to set an API key
   await page.goto('/app/settings')
@@ -200,7 +200,7 @@ test.describe('AI Rewrite', () => {
       await route.fulfill({
         status: 200,
         contentType: 'text/plain; charset=utf-8',
-        body: MOCK_RESPONSES.longer,
+        body: MOCK_RESPONSES.longer!,
       })
     })
 

@@ -1,29 +1,44 @@
 import { v } from 'convex/values'
-import { mutation, query } from './_generated/server'
-import { auth } from './auth'
+import { internal } from './_generated/api'
+import {
+  internalMutation,
+  mutation,
+  query,
+} from './_generated/server'
+import { cleanupDocumentBatch } from './documents'
+import { getCurrentUserId } from './model/auth'
+
+const DELETE_BATCH_SIZE = 64
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
-    return await ctx.db
+    const projects = await ctx.db
       .query('projects')
       .withIndex('by_user_updated', (q) => q.eq('userId', userId))
       .order('desc')
       .collect()
+    return projects.filter((project) => project.deletingAt === undefined)
   },
 })
 
 export const get = query({
   args: { id: v.id('projects') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return null
 
     const project = await ctx.db.get(args.id)
-    if (!project || project.userId !== userId) return null
+    if (
+      !project ||
+      project.userId !== userId ||
+      project.deletingAt !== undefined
+    ) {
+      return null
+    }
 
     return project
   },
@@ -35,7 +50,7 @@ export const create = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const now = Date.now()
@@ -56,11 +71,15 @@ export const update = mutation({
     description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const project = await ctx.db.get(args.id)
-    if (!project || project.userId !== userId) {
+    if (
+      !project ||
+      project.userId !== userId ||
+      project.deletingAt !== undefined
+    ) {
       throw new Error('Project not found')
     }
 
@@ -75,7 +94,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('projects') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const project = await ctx.db.get(args.id)
@@ -83,21 +102,44 @@ export const remove = mutation({
       throw new Error('Project not found')
     }
 
-    const documents = await ctx.db
+    if (project.deletingAt === undefined) {
+      await ctx.db.patch(args.id, { deletingAt: Date.now() })
+      await ctx.scheduler.runAfter(0, internal.projects.cleanup, { id: args.id })
+    }
+  },
+})
+
+export const cleanup = internalMutation({
+  args: { id: v.id('projects') },
+  handler: async (ctx, args) => {
+    const project = await ctx.db.get(args.id)
+    if (!project) return
+
+    const document = await ctx.db
       .query('documents')
       .withIndex('by_project', (q) => q.eq('projectId', args.id))
-      .collect()
-
-    for (const doc of documents) {
-      const revisions = await ctx.db
-        .query('revisions')
-        .withIndex('by_document', (q) => q.eq('documentId', doc._id))
-        .collect()
-
-      for (const rev of revisions) {
-        await ctx.db.delete(rev._id)
+      .first()
+    if (document) {
+      if (document.deletingAt === undefined) {
+        await ctx.db.patch(document._id, { deletingAt: Date.now() })
       }
-      await ctx.db.delete(doc._id)
+      await cleanupDocumentBatch(ctx, document._id)
+      await ctx.scheduler.runAfter(0, internal.projects.cleanup, { id: args.id })
+      return
+    }
+
+    const personas = await ctx.db
+      .query('personas')
+      .withIndex('by_user_project', (q) =>
+        q.eq('userId', project.userId).eq('projectId', args.id),
+      )
+      .take(DELETE_BATCH_SIZE)
+    for (const persona of personas) {
+      await ctx.db.delete(persona._id)
+    }
+    if (personas.length === DELETE_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, internal.projects.cleanup, { id: args.id })
+      return
     }
 
     await ctx.db.delete(args.id)

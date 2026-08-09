@@ -9,15 +9,19 @@
  */
 
 import type * as ai from "../ai.js";
-import type * as auth from "../auth.js";
+import type * as credentials from "../credentials.js";
 import type * as documents from "../documents.js";
 import type * as http from "../http.js";
+import type * as httpUtils from "../httpUtils.js";
+import type * as model_auth from "../model/auth.js";
+import type * as model_secrets from "../model/secrets.js";
 import type * as personas from "../personas.js";
 import type * as projects from "../projects.js";
 import type * as reviewNotes from "../reviewNotes.js";
 import type * as revisions from "../revisions.js";
 import type * as spending from "../spending.js";
 import type * as userSettings from "../userSettings.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -27,15 +31,19 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
-  auth: typeof auth;
+  credentials: typeof credentials;
   documents: typeof documents;
   http: typeof http;
+  httpUtils: typeof httpUtils;
+  "model/auth": typeof model_auth;
+  "model/secrets": typeof model_secrets;
   personas: typeof personas;
   projects: typeof projects;
   reviewNotes: typeof reviewNotes;
   revisions: typeof revisions;
   spending: typeof spending;
   userSettings: typeof userSettings;
+  users: typeof users;
 }>;
 
 /**

@@ -1,11 +1,11 @@
 import { v } from 'convex/values'
 import { mutation, query } from './_generated/server'
-import { auth } from './auth'
+import { getCurrentUserId } from './model/auth'
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
     return await ctx.db
@@ -18,7 +18,7 @@ export const list = query({
 export const get = query({
   args: { id: v.id('personas') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return null
 
     const persona = await ctx.db.get(args.id)
@@ -31,7 +31,7 @@ export const get = query({
 export const getDefault = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return null
 
     return await ctx.db
@@ -46,7 +46,7 @@ export const getDefault = query({
 export const listForProject = query({
   args: { projectId: v.optional(v.id('projects')) },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) return []
 
     const global = await ctx.db
@@ -56,6 +56,15 @@ export const listForProject = query({
       .collect()
 
     if (!args.projectId) return global
+
+    const project = await ctx.db.get(args.projectId)
+    if (
+      !project ||
+      project.userId !== userId ||
+      project.deletingAt !== undefined
+    ) {
+      return global
+    }
 
     const projectScoped = await ctx.db
       .query('personas')
@@ -78,8 +87,19 @@ export const create = mutation({
     projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
+
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId)
+      if (
+        !project ||
+        project.userId !== userId ||
+        project.deletingAt !== undefined
+      ) {
+        throw new Error('Project not found')
+      }
+    }
 
     const now = Date.now()
     const isDefault = args.isDefault ?? false
@@ -122,12 +142,23 @@ export const update = mutation({
     projectId: v.optional(v.id('projects')),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const persona = await ctx.db.get(args.id)
     if (!persona || persona.userId !== userId) {
       throw new Error('Persona not found')
+    }
+
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId)
+      if (
+        !project ||
+        project.userId !== userId ||
+        project.deletingAt !== undefined
+      ) {
+        throw new Error('Project not found')
+      }
     }
 
     if (args.isDefault === true) {
@@ -160,7 +191,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('personas') },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx)
+    const userId = await getCurrentUserId(ctx)
     if (!userId) throw new Error('Unauthorized')
 
     const persona = await ctx.db.get(args.id)

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useReducer } from 'react'
 import { useAI, type AIAction } from './useAI'
 import {
   computeDiffChunks,
@@ -12,12 +12,123 @@ export interface SavePoint {
   chunks: DiffChunk[]
 }
 
+export interface TextRange {
+  from: number
+  to: number
+}
+
+interface SessionState {
+  active: boolean
+  baselineText: string
+  chunks: DiffChunk[]
+  selectionRange: TextRange | null
+  documentRange: TextRange | null
+  fullDocumentText: string
+  savePoints: SavePoint[]
+  customPrompt?: string
+}
+
+type SessionAction =
+  | {
+      type: 'enter'
+      baselineText: string
+      selectionRange: TextRange
+      documentRange: TextRange
+      fullDocumentText: string
+      customPrompt?: string
+    }
+  | { type: 'complete'; result: string }
+  | {
+      type: 'set_chunk_status'
+      id: string
+      status: 'accepted' | 'rejected' | 'pending'
+    }
+  | { type: 'accept_all' }
+  | { type: 'regenerate' }
+  | { type: 'undo_regeneration' }
+  | { type: 'close' }
+
+const INITIAL_STATE: SessionState = {
+  active: false,
+  baselineText: '',
+  chunks: [],
+  selectionRange: null,
+  documentRange: null,
+  fullDocumentText: '',
+  savePoints: [],
+}
+
+function sessionReducer(state: SessionState, action: SessionAction): SessionState {
+  switch (action.type) {
+    case 'enter':
+      return {
+        active: true,
+        baselineText: action.baselineText,
+        chunks: [],
+        selectionRange: action.selectionRange,
+        documentRange: action.documentRange,
+        fullDocumentText: action.fullDocumentText,
+        savePoints: [],
+        ...(action.customPrompt === undefined
+          ? {}
+          : { customPrompt: action.customPrompt }),
+      }
+    case 'complete':
+      if (!state.active) return state
+      return {
+        ...state,
+        chunks: computeDiffChunks(state.baselineText, action.result),
+      }
+    case 'set_chunk_status':
+      return {
+        ...state,
+        chunks: state.chunks.map((chunk) =>
+          chunk.id === action.id ? { ...chunk, status: action.status } : chunk
+        ),
+      }
+    case 'accept_all':
+      return {
+        ...state,
+        chunks: state.chunks.map((chunk) =>
+          chunk.type !== 'equal' && chunk.status === 'pending'
+            ? { ...chunk, status: 'accepted' }
+            : chunk
+        ),
+      }
+    case 'regenerate': {
+      const merged = applyAcceptedChunks(state.chunks)
+      return {
+        ...state,
+        baselineText: merged,
+        chunks: [],
+        savePoints: [
+          ...state.savePoints,
+          { baselineText: state.baselineText, chunks: state.chunks },
+        ],
+      }
+    }
+    case 'undo_regeneration': {
+      const previous = state.savePoints.at(-1)
+      if (!previous) return state
+      return {
+        ...state,
+        baselineText: previous.baselineText,
+        chunks: previous.chunks,
+        savePoints: state.savePoints.slice(0, -1),
+      }
+    }
+    case 'close':
+      return INITIAL_STATE
+  }
+}
+
 export interface AISplitSession {
   active: boolean
   isLoading: boolean
   baselineText: string
   chunks: DiffChunk[]
-  selectionRange: { from: number; to: number } | null
+  selectionRange: TextRange | null
+  documentRange: TextRange | null
   fullDocumentText: string
   savePoints: SavePoint[]
   acceptedCount: number
@@ -25,7 +136,8 @@ export interface AISplitSession {
   hasApiKey: boolean
   enterSplitMode: (
     selectedText: string,
-    range: { from: number; to: number },
+    range: TextRange,
+    documentRange: TextRange,
     action: AIAction,
     fullText: string,
     customPrompt?: string
@@ -41,47 +153,31 @@ export interface AISplitSession {
 }
 
 export function useAISplitSession(): AISplitSession {
-  const [active, setActive] = useState(false)
-  const [baselineText, setBaselineText] = useState('')
-  const [chunks, setChunks] = useState<DiffChunk[]>([])
-  const [savePoints, setSavePoints] = useState<SavePoint[]>([])
-  const [selectionRange, setSelectionRange] = useState<{
-    from: number
-    to: number
-  } | null>(null)
-  const [fullDocumentText, setFullDocumentText] = useState('')
-
-  const actionRef = useRef<AIAction>('rewrite')
-  const customPromptRef = useRef<string | undefined>(undefined)
+  const [state, dispatch] = useReducer(sessionReducer, INITIAL_STATE)
 
   const { isLoading, runAction, clear, hasApiKey } = useAI({
     onComplete: (result) => {
-      const newChunks = computeDiffChunks(baselineTextRef.current, result)
-      setChunks(newChunks)
+      dispatch({ type: 'complete', result })
     },
   })
-
-  // Keep a ref in sync for the callback
-  const baselineTextRef = useRef(baselineText)
-  baselineTextRef.current = baselineText
 
   const enterSplitMode = useCallback(
     (
       selectedText: string,
-      range: { from: number; to: number },
+      range: TextRange,
+      documentRange: TextRange,
       action: AIAction,
       fullText: string,
       customPrompt?: string
     ) => {
-      setActive(true)
-      setBaselineText(selectedText)
-      baselineTextRef.current = selectedText
-      setSelectionRange(range)
-      setFullDocumentText(fullText)
-      setChunks([])
-      setSavePoints([])
-      actionRef.current = action
-      customPromptRef.current = customPrompt
+      dispatch({
+        type: 'enter',
+        baselineText: selectedText,
+        selectionRange: range,
+        documentRange,
+        fullDocumentText: fullText,
+        ...(customPrompt === undefined ? {} : { customPrompt }),
+      })
       clear()
       void runAction(action, selectedText, undefined, customPrompt)
     },
@@ -89,94 +185,63 @@ export function useAISplitSession(): AISplitSession {
   )
 
   const acceptChunk = useCallback((id: string) => {
-    setChunks((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: 'accepted' as const } : c))
-    )
+    dispatch({ type: 'set_chunk_status', id, status: 'accepted' })
   }, [])
 
   const rejectChunk = useCallback((id: string) => {
-    setChunks((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: 'rejected' as const } : c))
-    )
+    dispatch({ type: 'set_chunk_status', id, status: 'rejected' })
   }, [])
 
   const revertChunk = useCallback((id: string) => {
-    setChunks((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, status: 'pending' as const } : c))
-    )
+    dispatch({ type: 'set_chunk_status', id, status: 'pending' })
   }, [])
 
   const acceptAll = useCallback(() => {
-    setChunks((prev) =>
-      prev.map((c) =>
-        c.type !== 'equal' && c.status === 'pending'
-          ? { ...c, status: 'accepted' as const }
-          : c
-      )
-    )
+    dispatch({ type: 'accept_all' })
   }, [])
 
   const regenerate = useCallback(
     (action: AIAction) => {
-      // Push save point
-      setSavePoints((prev) => [
-        ...prev,
-        { baselineText: baselineTextRef.current, chunks },
-      ])
-
-      // Merge accepted into new baseline
-      const merged = applyAcceptedChunks(chunks)
-      setBaselineText(merged)
-      baselineTextRef.current = merged
-      setChunks([])
-      actionRef.current = action
+      const merged = applyAcceptedChunks(state.chunks)
+      dispatch({ type: 'regenerate' })
       clear()
-      void runAction(action, merged, undefined, customPromptRef.current)
+      void runAction(action, merged, undefined, state.customPrompt)
     },
-    [chunks, clear, runAction]
+    [clear, runAction, state.chunks, state.customPrompt]
   )
 
   const undoRegeneration = useCallback(() => {
-    if (savePoints.length === 0) return
-    const prev = savePoints[savePoints.length - 1]!
-    setSavePoints((sp) => sp.slice(0, -1))
-    setBaselineText(prev.baselineText)
-    baselineTextRef.current = prev.baselineText
-    setChunks(prev.chunks)
+    if (state.savePoints.length === 0) return
+    dispatch({ type: 'undo_regeneration' })
     clear()
-  }, [savePoints, clear])
+  }, [clear, state.savePoints.length])
 
   const finish = useCallback((): string | null => {
-    if (!selectionRange) return null
-    const mergedSelection = applyAcceptedChunks(chunks)
-    // Return merged selection for caller to splice into document
-    setActive(false)
-    setChunks([])
-    setSavePoints([])
-    setSelectionRange(null)
+    if (!state.selectionRange || !state.documentRange) return null
+    const mergedSelection = applyAcceptedChunks(state.chunks)
+    dispatch({ type: 'close' })
     clear()
     return mergedSelection
-  }, [chunks, selectionRange, clear])
+  }, [clear, state.chunks, state.documentRange, state.selectionRange])
 
   const cancelAll = useCallback(() => {
-    setActive(false)
-    setChunks([])
-    setSavePoints([])
-    setSelectionRange(null)
-    setBaselineText('')
+    dispatch({ type: 'close' })
     clear()
   }, [clear])
 
   return {
-    active,
+    active: state.active,
     isLoading,
-    baselineText,
-    chunks,
-    selectionRange,
-    fullDocumentText,
-    savePoints,
-    acceptedCount: countAcceptedEdits(chunks),
-    pendingCount: chunks.filter((c) => c.type !== 'equal' && c.status === 'pending').length,
+    baselineText: state.baselineText,
+    chunks: state.chunks,
+    selectionRange: state.selectionRange,
+    documentRange: state.documentRange,
+    fullDocumentText: state.fullDocumentText,
+    savePoints: state.savePoints,
+    acceptedCount: countAcceptedEdits(state.chunks),
+    pendingCount: state.chunks.filter(
+      (chunk) => chunk.type !== 'equal' && chunk.status === 'pending'
+    ).length,
     hasApiKey,
     enterSplitMode,
     acceptChunk,

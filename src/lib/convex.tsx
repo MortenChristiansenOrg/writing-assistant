@@ -1,4 +1,5 @@
-import { ConvexAuthProvider } from '@convex-dev/auth/react'
+import { ClerkProvider, useAuth as useClerkAuth } from '@clerk/react'
+import { ConvexProviderWithClerk } from 'convex/react-clerk'
 import { ConvexReactClient } from 'convex/react'
 import { type ReactNode } from 'react'
 import { env } from './env'
@@ -8,7 +9,13 @@ const convex = new ConvexReactClient(env.VITE_CONVEX_URL, {
 })
 
 export function ConvexProvider({ children }: { children: ReactNode }) {
-  return <ConvexAuthProvider client={convex}>{children}</ConvexAuthProvider>
+  return (
+    <ClerkProvider publishableKey={env.VITE_CLERK_PUBLISHABLE_KEY}>
+      <ConvexProviderWithClerk client={convex} useAuth={useClerkAuth}>
+        {children}
+      </ConvexProviderWithClerk>
+    </ClerkProvider>
+  )
 }
 
 export { convex }

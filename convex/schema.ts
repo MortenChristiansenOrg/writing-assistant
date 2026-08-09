@@ -1,15 +1,26 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
-import { authTables } from '@convex-dev/auth/server'
 
 export default defineSchema({
-  ...authTables,
+  users: defineTable({
+    tokenIdentifier: v.string(),
+    subject: v.string(),
+    issuer: v.string(),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    lastSeenAt: v.number(),
+  })
+    .index('by_token', ['tokenIdentifier'])
+    .index('by_subject', ['subject']),
 
   userSettings: defineTable({
     userId: v.id('users'),
     defaultModel: v.optional(v.string()),
     spendingThreshold: v.optional(v.number()),
-    vaultKeyId: v.optional(v.string()),
+    openRouterKeyCiphertext: v.optional(v.string()),
+    openRouterKeyIv: v.optional(v.string()),
+    openRouterKeyVersion: v.optional(v.number()),
   }).index('by_user', ['userId']),
 
   projects: defineTable({
@@ -18,6 +29,7 @@ export default defineSchema({
     description: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletingAt: v.optional(v.number()),
   })
     .index('by_user', ['userId'])
     .index('by_user_updated', ['userId', 'updatedAt']),
@@ -30,6 +42,7 @@ export default defineSchema({
     content: v.any(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletingAt: v.optional(v.number()),
   })
     .index('by_project', ['projectId'])
     .index('by_user', ['userId'])

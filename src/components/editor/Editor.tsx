@@ -3,7 +3,7 @@ import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import CharacterCount from '@tiptap/extension-character-count'
-import { Markdown } from 'tiptap-markdown'
+import { Markdown } from '@tiptap/markdown'
 import { useEffect, useRef, useState } from 'react'
 import { TipTapAdapter } from '@/lib/editor'
 import type { EditorAdapter, DocumentContent } from '@/lib/editor'
@@ -11,6 +11,7 @@ import { AIBubbleMenu, type AIAction } from './AIBubbleMenu'
 
 interface EditorProps {
   content?: DocumentContent
+  contentKey: string
   onChange?: (content: DocumentContent) => void
   onAdapterReady?: (adapter: EditorAdapter) => void
   onAIAction?: (action: AIAction, selectedText: string) => void
@@ -22,6 +23,7 @@ interface EditorProps {
 
 export function Editor({
   content,
+  contentKey,
   onChange,
   onAdapterReady,
   onAIAction,
@@ -30,8 +32,8 @@ export function Editor({
   extraExtensions = [],
   className,
 }: EditorProps) {
-  const adapterRef = useRef<TipTapAdapter | null>(null)
   const initializedRef = useRef(false)
+  const contentKeyRef = useRef(contentKey)
   const [wordCount, setWordCount] = useState(0)
 
   const editor = useEditor({
@@ -39,7 +41,7 @@ export function Editor({
       StarterKit,
       Placeholder.configure({ placeholder }),
       CharacterCount,
-      Markdown.configure({ html: true, transformPastedText: true }),
+      Markdown,
       ...extraExtensions,
     ],
     content: content?.type === 'json' ? content.data : content?.data ?? '',
@@ -71,8 +73,6 @@ export function Editor({
     if (!editor) return
 
     const adapter = new TipTapAdapter(editor)
-    adapterRef.current = adapter
-
     onAdapterReady?.(adapter)
 
     if (onChange) {
@@ -86,21 +86,28 @@ export function Editor({
     return () => adapter.destroy()
   }, [editor, onChange, onAdapterReady])
 
-  // Only sync content prop on initial load, not during editing
+  // Sync only when the logical document changes. Server echoes from autosave must
+  // not replace newer local edits for the same document.
   useEffect(() => {
-    if (!editor || !content || initializedRef.current) return
+    if (!editor || !content) return
 
-    const currentContent = editor.getJSON()
-    const newContent = content.type === 'json' ? content.data : null
+    const contentChanged = contentKeyRef.current !== contentKey
+    if (initializedRef.current && !contentChanged) return
 
-    if (
-      newContent &&
-      JSON.stringify(currentContent) !== JSON.stringify(newContent)
-    ) {
-      editor.commands.setContent(newContent)
+    if (content.type === 'json') {
+      const currentContent = editor.getJSON()
+      if (JSON.stringify(currentContent) !== JSON.stringify(content.data)) {
+        editor.commands.setContent(content.data, { emitUpdate: false })
+      }
+    } else {
+      if (editor.getHTML() !== content.data) {
+        editor.commands.setContent(content.data, { emitUpdate: false })
+      }
     }
+
+    contentKeyRef.current = contentKey
     initializedRef.current = true
-  }, [editor, content])
+  }, [content, contentKey, editor])
 
   if (!editor) {
     return (

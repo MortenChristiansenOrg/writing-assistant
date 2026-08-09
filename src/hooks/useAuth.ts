@@ -1,14 +1,13 @@
+import { useClerk } from '@clerk/react'
 import { useConvexAuth } from 'convex/react'
-import { useAuthActions } from '@convex-dev/auth/react'
 
 export function useAuth() {
   const { isLoading, isAuthenticated } = useConvexAuth()
-  const { signIn, signOut } = useAuthActions()
+  const clerk = useClerk()
 
   return {
     isLoading,
     isAuthenticated,
-    signIn,
-    signOut,
+    signOut: clerk.signOut,
   }
 }

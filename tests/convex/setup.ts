@@ -1,5 +1,6 @@
 import { convexTest } from 'convex-test'
 import schema from '../../convex/schema'
+import type { Id } from '../../convex/_generated/dataModel'
 import { vi } from 'vitest'
 
 // Import modules explicitly for convex-test
@@ -12,20 +13,32 @@ export function createTestContext() {
 
 // Helper to create authenticated test context
 export async function createAuthenticatedContext(t: ReturnType<typeof convexTest>) {
+  const subject = `user_test_${crypto.randomUUID()}`
+  const issuer = 'https://clerk.test'
+  const tokenIdentifier = `${issuer}|${subject}`
   const userId = await t.run(async (ctx) => {
-    return await ctx.db.insert('users', {})
+    return await ctx.db.insert('users', {
+      tokenIdentifier,
+      subject,
+      issuer,
+      lastSeenAt: Date.now(),
+    })
   })
-  return { userId, asUser: t.withIdentity({ subject: userId }) }
+  return {
+    userId,
+    tokenIdentifier,
+    asUser: t.withIdentity({ subject, issuer, tokenIdentifier }),
+  }
 }
 
 // Helper to create a project for testing
 export async function createTestProject(
   t: ReturnType<typeof convexTest>,
-  userId: string
+  userId: Id<'users'>,
 ) {
   return await t.run(async (ctx) => {
     return await ctx.db.insert('projects', {
-      userId: userId as never,
+      userId,
       name: 'Test Project',
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -36,13 +49,13 @@ export async function createTestProject(
 // Helper to create a document for testing
 export async function createTestDocument(
   t: ReturnType<typeof convexTest>,
-  userId: string,
-  projectId: string
+  userId: Id<'users'>,
+  projectId: Id<'projects'>,
 ) {
   return await t.run(async (ctx) => {
     return await ctx.db.insert('documents', {
-      projectId: projectId as never,
-      userId: userId as never,
+      projectId,
+      userId,
       title: 'Test Document',
       content: { type: 'doc', content: [{ type: 'paragraph' }] },
       createdAt: Date.now(),
@@ -56,4 +69,15 @@ export function mockDate(date: Date) {
   vi.useFakeTimers()
   vi.setSystemTime(date)
   return () => vi.useRealTimers()
+}
+
+export async function finishScheduledFunctions(
+  t: ReturnType<typeof createTestContext>,
+): Promise<void> {
+  vi.useFakeTimers()
+  try {
+    await t.finishAllScheduledFunctions(() => vi.runAllTimers())
+  } finally {
+    vi.useRealTimers()
+  }
 }

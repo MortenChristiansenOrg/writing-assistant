@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { LoginPage, SidebarPage, EditorPage } from './page-objects'
 
-test.describe('AI User Flow (Password Auth)', () => {
+test.describe('AI user flow (Clerk auth)', () => {
   test('login as test user and access app', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
 
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     // Should see the sidebar after login
     const sidebar = new SidebarPage(page)
@@ -16,7 +16,7 @@ test.describe('AI User Flow (Password Auth)', () => {
   test('create project and document after login', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Alice')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)
@@ -30,10 +30,10 @@ test.describe('AI User Flow (Password Auth)', () => {
     await expect(editor.editorContainer).toBeVisible()
   })
 
-  test('type in editor after password auth', async ({ page }) => {
+  test('type in editor after Clerk auth', async ({ page }) => {
     const loginPage = new LoginPage(page)
     await loginPage.goto()
-    await loginPage.loginAsTestUser('Bob')
+    await loginPage.continueAsTestUser()
 
     const sidebar = new SidebarPage(page)
     const editor = new EditorPage(page)

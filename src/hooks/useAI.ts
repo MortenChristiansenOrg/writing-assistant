@@ -1,9 +1,10 @@
 import { useCompletion } from '@ai-sdk/react'
-import { useQuery, useMutation } from 'convex/react'
+import { useQuery } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { convexSiteUrl } from '@/lib/convex-url'
+import { useConvexHttpToken } from './useConvexHttpToken'
 
 export type AIAction =
   | 'rewrite'
@@ -20,8 +21,17 @@ interface UseAIOptions {
 
 export function useAI(options: UseAIOptions = {}) {
   const settings = useQuery(api.userSettings.get)
-  const recordSpending = useMutation(api.spending.record)
+  const getConvexHttpToken = useConvexHttpToken()
   const [isStreaming, setIsStreaming] = useState(false)
+  const authenticatedFetch = useCallback(
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const token = await getConvexHttpToken()
+      const headers = new Headers(init?.headers)
+      headers.set('Authorization', `Bearer ${token}`)
+      return await fetch(input, { ...init, headers })
+    },
+    [getConvexHttpToken],
+  )
 
   const {
     completion,
@@ -32,13 +42,16 @@ export function useAI(options: UseAIOptions = {}) {
     setCompletion,
   } = useCompletion({
     api: `${convexSiteUrl}/ai/stream`,
+    fetch: authenticatedFetch,
     streamProtocol: 'text',
     onFinish: (_prompt, result) => {
       setIsStreaming(false)
 
       // Detect backend stream errors
-      if (result.startsWith('__AI_ERROR__:')) {
-        const msg = result.slice('__AI_ERROR__:'.length)
+      const errorMarker = '__AI_ERROR__:'
+      const errorOffset = result.indexOf(errorMarker)
+      if (errorOffset >= 0) {
+        const msg = result.slice(errorOffset + errorMarker.length)
         setCompletion('')
         toast.error(msg, { duration: Infinity })
         options.onError?.(new Error(msg))
@@ -55,15 +68,6 @@ export function useAI(options: UseAIOptions = {}) {
 
       options.onComplete?.(result)
 
-      // Estimate token usage (rough approximation)
-      const inputTokens = Math.ceil(result.length / 4)
-      const outputTokens = Math.ceil(result.length / 4)
-
-      recordSpending({
-        model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
-        inputTokens,
-        outputTokens,
-      }).catch(console.error)
     },
     onError: (err) => {
       setIsStreaming(false)
@@ -80,7 +84,7 @@ export function useAI(options: UseAIOptions = {}) {
     persona?: string,
     customPrompt?: string
   ) => {
-    if (!settings?.vaultKeyId) {
+    if (!settings?.hasOpenRouterKey) {
       const error = new Error('Please add your OpenRouter API key in settings')
       toast.error(error.message)
       options.onError?.(error)
@@ -95,8 +99,7 @@ export function useAI(options: UseAIOptions = {}) {
         action,
         text,
         persona,
-        model: settings?.defaultModel ?? 'anthropic/claude-3.5-sonnet',
-        apiKey: settings.vaultKeyId,
+        model: settings?.defaultModel ?? 'anthropic/claude-sonnet-5',
       }
       if (customPrompt) body.customPrompt = customPrompt
 
@@ -114,6 +117,6 @@ export function useAI(options: UseAIOptions = {}) {
     runAction,
     stop,
     clear: () => setCompletion(''),
-    hasApiKey: !!settings?.vaultKeyId,
+    hasApiKey: Boolean(settings?.hasOpenRouterKey),
   }
 }
