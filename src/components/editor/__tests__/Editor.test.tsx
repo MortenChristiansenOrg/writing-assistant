@@ -3,6 +3,14 @@ import { render, screen, waitFor } from '@/test/test-utils'
 import { Editor } from '../Editor'
 import type { DocumentContent } from '@/lib/editor'
 
+const { mockAdapterOnSelectionChange, mockSelectionUnsubscribe } = vi.hoisted(() => {
+  const unsubscribe = vi.fn()
+  return {
+    mockAdapterOnSelectionChange: vi.fn(() => unsubscribe),
+    mockSelectionUnsubscribe: unsubscribe,
+  }
+})
+
 // Mock TipTap with proper class syntax
 const mockOn = vi.fn()
 const mockOff = vi.fn()
@@ -57,6 +65,7 @@ vi.mock('@/lib/editor', () => {
   return {
     TipTapAdapter: class {
       onContentChange = vi.fn().mockReturnValue(() => {})
+      onSelectionChange = mockAdapterOnSelectionChange
       destroy = vi.fn()
     },
   }
@@ -112,6 +121,21 @@ describe('Editor', () => {
     await waitFor(() => {
       expect(mockOnAdapterReady).toHaveBeenCalled()
     })
+  })
+
+  it('subscribes to editor selection changes', () => {
+    const onSelectionChange = vi.fn()
+
+    const { unmount } = render(
+      <Editor
+        contentKey="test-document"
+        onSelectionChange={onSelectionChange}
+      />,
+    )
+
+    expect(mockAdapterOnSelectionChange).toHaveBeenCalledWith(onSelectionChange)
+    unmount()
+    expect(mockSelectionUnsubscribe).toHaveBeenCalledOnce()
   })
 
   it('renders AI bubble menu when onAIAction provided', () => {

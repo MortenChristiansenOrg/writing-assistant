@@ -52,10 +52,31 @@ const prototypeDocument: DocumentContent = {
 
 export function PrototypeToolsPage() {
   const adapterRef = useRef<EditorAdapter | null>(null)
+  const toolsOpenRef = useRef(false)
   const [category, setCategory] = useState<ProjectCategoryId>('fiction')
   const [toolsOpen, setToolsOpen] = useState(false)
   const [context, setContext] = useState<ToolContextSnapshot | null>(null)
   const [initialToolId, setInitialToolId] = useState<string | null>(null)
+
+  const handleAdapterReady = useCallback((adapter: EditorAdapter) => {
+    adapterRef.current = adapter
+  }, [])
+
+  const refreshToolContext = useCallback(() => {
+    if (!toolsOpenRef.current) return
+    const adapter = adapterRef.current
+    if (!adapter) return
+    setContext({
+      documentText: adapter.getMarkdown(),
+      selection: adapter.getSelection(),
+      cursor: adapter.getCursorPosition(),
+    })
+  }, [])
+
+  const handleToolsOpenChange = useCallback((open: boolean) => {
+    toolsOpenRef.current = open
+    setToolsOpen(open)
+  }, [])
 
   const openTools = useCallback((toolId?: string) => {
     const adapter = adapterRef.current
@@ -66,6 +87,7 @@ export function PrototypeToolsPage() {
       cursor: adapter.getCursorPosition(),
     })
     setInitialToolId(toolId ?? null)
+    toolsOpenRef.current = true
     setToolsOpen(true)
   }, [])
 
@@ -131,7 +153,9 @@ export function PrototypeToolsPage() {
           <Editor
             content={prototypeDocument}
             contentKey="writing-tools-prototype"
-            onAdapterReady={(adapter) => { adapterRef.current = adapter }}
+            onChange={refreshToolContext}
+            onSelectionChange={refreshToolContext}
+            onAdapterReady={handleAdapterReady}
             onWritingTool={(toolId) => openTools(toolId)}
             placeholder="Start writing…"
           />
@@ -140,9 +164,9 @@ export function PrototypeToolsPage() {
 
       {context && (
         <WritingToolsSheet
-          key={`${toolsOpen ? 'open' : 'closed'}-${category}-${context.cursor}-${initialToolId ?? 'catalog'}`}
+          key={`${toolsOpen ? 'open' : 'closed'}-${category}-${initialToolId ?? 'catalog'}`}
           open={toolsOpen}
-          onOpenChange={setToolsOpen}
+          onOpenChange={handleToolsOpenChange}
           category={category}
           context={context}
           initialToolId={initialToolId}

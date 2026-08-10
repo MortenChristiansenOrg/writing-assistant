@@ -14,7 +14,7 @@ describe('WritingToolsSheet', () => {
   it('explains a tool before running it and applies only after confirmation', async () => {
     const user = userEvent.setup()
     const onApply = vi.fn().mockResolvedValue(true)
-    render(
+    const { rerender } = render(
       <WritingToolsSheet
         open
         onOpenChange={vi.fn()}
@@ -31,6 +31,19 @@ describe('WritingToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: 'Use tool' }))
     expect(await screen.findByText('Prototype result')).toBeInTheDocument()
+    rerender(
+      <WritingToolsSheet
+        open
+        onOpenChange={vi.fn()}
+        category="fiction"
+        context={{
+          ...context,
+          selection: { text: 'different passage', from: 18, to: 35 },
+        }}
+        initialToolId="alternate-pov"
+        onApply={onApply}
+      />,
+    )
     await user.click(screen.getByRole('button', { name: 'Replace selection' }))
 
     expect(onApply).toHaveBeenCalledWith(expect.objectContaining({
@@ -39,9 +52,8 @@ describe('WritingToolsSheet', () => {
     }))
   })
 
-  it('keeps unavailable tools discoverable and gives recovery guidance', async () => {
-    const user = userEvent.setup()
-    render(
+  it('enables a selection tool when editor context updates while Tools stays open', async () => {
+    const { rerender } = render(
       <WritingToolsSheet
         open
         onOpenChange={vi.fn()}
@@ -52,8 +64,45 @@ describe('WritingToolsSheet', () => {
       />,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Use tool' }))
-    expect(screen.getByText(/Select a passage in the editor/)).toBeInTheDocument()
+    expect(screen.getByText('Choose context in the editor')).toBeInTheDocument()
+    expect(screen.getByText(/Keep Tools open, then select a passage/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use tool' })).toBeDisabled()
+
+    rerender(
+      <WritingToolsSheet
+        open
+        onOpenChange={vi.fn()}
+        category="general"
+        context={context}
+        initialToolId="alternate-pov"
+        onApply={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    expect(screen.queryByText('Choose context in the editor')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Keep Tools open, then select a passage/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use tool' })).toBeEnabled()
+  })
+
+  it('keeps the workspace open while the user interacts with the editor', async () => {
+    const user = userEvent.setup()
+    const onOpenChange = vi.fn()
+    render(
+      <div>
+        <button type="button">Editor surface</button>
+        <WritingToolsSheet
+          open
+          onOpenChange={onOpenChange}
+          category="fiction"
+          context={context}
+          onApply={vi.fn().mockResolvedValue(true)}
+        />
+      </div>,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Editor surface' }))
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 
   it('resets result-local state when the same tool is run again', async () => {

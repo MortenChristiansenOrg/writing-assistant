@@ -6,13 +6,14 @@ import CharacterCount from '@tiptap/extension-character-count'
 import { Markdown } from '@tiptap/markdown'
 import { useEffect, useRef, useState } from 'react'
 import { TipTapAdapter } from '@/lib/editor'
-import type { EditorAdapter, DocumentContent } from '@/lib/editor'
+import type { EditorAdapter, DocumentContent, Selection } from '@/lib/editor'
 import { AIBubbleMenu, type AIAction } from './AIBubbleMenu'
 
 interface EditorProps {
   content?: DocumentContent
   contentKey: string
   onChange?: (content: DocumentContent) => void
+  onSelectionChange?: (selection: Selection | null) => void
   onAdapterReady?: (adapter: EditorAdapter) => void
   onAIAction?: (action: AIAction, selectedText: string) => void
   onWritingTool?: (toolId: string) => void
@@ -26,6 +27,7 @@ export function Editor({
   content,
   contentKey,
   onChange,
+  onSelectionChange,
   onAdapterReady,
   onAIAction,
   onWritingTool,
@@ -77,16 +79,19 @@ export function Editor({
     const adapter = new TipTapAdapter(editor)
     onAdapterReady?.(adapter)
 
-    if (onChange) {
-      const unsubscribe = adapter.onContentChange(onChange)
-      return () => {
-        unsubscribe()
-        adapter.destroy()
-      }
-    }
+    const unsubscribeContent = onChange
+      ? adapter.onContentChange(onChange)
+      : undefined
+    const unsubscribeSelection = onSelectionChange
+      ? adapter.onSelectionChange(onSelectionChange)
+      : undefined
 
-    return () => adapter.destroy()
-  }, [editor, onChange, onAdapterReady])
+    return () => {
+      unsubscribeContent?.()
+      unsubscribeSelection?.()
+      adapter.destroy()
+    }
+  }, [editor, onChange, onSelectionChange, onAdapterReady])
 
   // Sync only when the logical document changes. Server echoes from autosave must
   // not replace newer local edits for the same document.

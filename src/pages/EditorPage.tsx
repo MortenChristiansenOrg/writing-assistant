@@ -111,6 +111,7 @@ function LoadedEditorPage({
     () => document.description ?? ''
   )
   const [toolsOpen, setToolsOpen] = useState(false)
+  const toolsOpenRef = useRef(false)
   const [toolContext, setToolContext] = useState<ToolContextSnapshot | null>(null)
   const [initialToolId, setInitialToolId] = useState<string | null>(null)
   const [projectCategory, setProjectCategory] = useState<ProjectCategoryId>(() =>
@@ -178,12 +179,38 @@ function LoadedEditorPage({
   const handleContentChange = useCallback(
     (content: DocumentContent) => {
       contentAutosave.schedule({ id: docId, content: content.data })
+      if (toolsOpenRef.current) {
+        const adapter = editorAdapterRef.current
+        if (adapter) {
+          setToolContext({
+            documentText: adapter.getMarkdown(),
+            selection: adapter.getSelection(),
+            cursor: adapter.getCursorPosition(),
+          })
+        }
+      }
     },
     [contentAutosave, docId]
   )
 
   const handleAdapterReady = useCallback((adapter: EditorAdapter) => {
     editorAdapterRef.current = adapter
+  }, [])
+
+  const refreshToolContext = useCallback(() => {
+    if (!toolsOpenRef.current) return
+    const adapter = editorAdapterRef.current
+    if (!adapter) return
+    setToolContext({
+      documentText: adapter.getMarkdown(),
+      selection: adapter.getSelection(),
+      cursor: adapter.getCursorPosition(),
+    })
+  }, [])
+
+  const handleToolsOpenChange = useCallback((open: boolean) => {
+    toolsOpenRef.current = open
+    setToolsOpen(open)
   }, [])
 
   const handleOpenWritingTools = useCallback((toolId?: string) => {
@@ -195,6 +222,7 @@ function LoadedEditorPage({
       cursor: adapter.getCursorPosition(),
     })
     setInitialToolId(toolId ?? null)
+    toolsOpenRef.current = true
     setToolsOpen(true)
   }, [])
 
@@ -436,6 +464,7 @@ function LoadedEditorPage({
               content={initialContent}
               contentKey={docId}
               onChange={handleContentChange}
+              onSelectionChange={refreshToolContext}
               onAdapterReady={handleAdapterReady}
               onAIAction={handleAIAction}
               onWritingTool={(toolId) => handleOpenWritingTools(toolId)}
@@ -459,9 +488,9 @@ function LoadedEditorPage({
       </div>
       {toolContext && (
         <WritingToolsSheet
-          key={`${toolsOpen ? 'open' : 'closed'}-${projectCategory}-${toolContext.cursor}-${initialToolId ?? 'catalog'}`}
+          key={`${toolsOpen ? 'open' : 'closed'}-${projectCategory}-${initialToolId ?? 'catalog'}`}
           open={toolsOpen}
-          onOpenChange={setToolsOpen}
+          onOpenChange={handleToolsOpenChange}
           category={projectCategory}
           context={toolContext}
           initialToolId={initialToolId}

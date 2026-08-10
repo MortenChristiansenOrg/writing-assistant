@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from '@/test/test-utils'
+import { fireEvent, render, screen, waitFor, within } from '@/test/test-utils'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import type { DocumentContent, EditorAdapter } from '@/lib/editor'
+import type { DocumentContent, EditorAdapter, Selection } from '@/lib/editor'
 import { useMutation, useQuery } from 'convex/react'
 import { getFunctionName } from 'convex/server'
 import { toast } from 'sonner'
@@ -53,8 +53,8 @@ const {
 const editorAdapter: EditorAdapter = {
   getContent: () => ({ type: 'json', data: { type: 'doc' } }),
   setContent: vi.fn(),
-  getSelection: () => null,
-  getCursorPosition: () => 1,
+  getSelection: () => currentSelection,
+  getCursorPosition: () => currentSelection?.to ?? 1,
   replaceSelection: vi.fn(),
   insertAtCursor: vi.fn(),
   focus: vi.fn(),
@@ -72,6 +72,8 @@ const editorAdapter: EditorAdapter = {
   setMarkdownContent: vi.fn(),
   destroy: vi.fn(),
 }
+
+let currentSelection: Selection | null = null
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual<typeof import('react-router-dom')>(
@@ -98,20 +100,33 @@ vi.mock('@/components/editor/Editor', () => ({
   Editor: ({
     onChange,
     onAdapterReady,
+    onSelectionChange,
   }: {
     onChange?: (content: DocumentContent) => void
     onAdapterReady?: (adapter: EditorAdapter) => void
+    onSelectionChange?: (selection: Selection | null) => void
   }) => {
     onAdapterReady?.(editorAdapter)
     return (
-      <button
-        type="button"
-        onClick={() =>
-          onChange?.({ type: 'json', data: { type: 'doc', changed: true } })
-        }
-      >
-        Change editor content
-      </button>
+      <div>
+        <button
+          type="button"
+          onClick={() =>
+            onChange?.({ type: 'json', data: { type: 'doc', changed: true } })
+          }
+        >
+          Change editor content
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            currentSelection = { text: 'selected passage', from: 2, to: 18 }
+            onSelectionChange?.(currentSelection)
+          }}
+        >
+          Select editor text
+        </button>
+      </div>
     )
   },
 }))
@@ -208,6 +223,7 @@ vi.mock('sonner', () => ({
 describe('EditorPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    currentSelection = null
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
     updateDocument.mockResolvedValue(undefined)
     createRevision.mockResolvedValue('revision-test')
@@ -292,6 +308,23 @@ describe('EditorPage', () => {
       { name: 'Editor', systemPrompt: 'Review carefully' },
       { documentDescription: 'Current unsaved description' },
     )
+  })
+
+  it('updates selection-dependent tools while the workspace remains open', async () => {
+    render(<EditorPage />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tools' }))
+    const card = screen
+      .getByText('Alternate point of view')
+      .closest<HTMLElement>('[data-slot="card"]')
+    if (!card) throw new Error('Alternate point of view card not found')
+    const useButton = within(card).getByRole('button', { name: 'Use tool' })
+    expect(useButton).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select editor text', hidden: true }))
+
+    await waitFor(() => expect(useButton).toBeEnabled())
+    expect(screen.getByText('16 characters selected. Selection tools are ready.')).toBeInTheDocument()
   })
 
   it('persists the revision before applying the edit', async () => {

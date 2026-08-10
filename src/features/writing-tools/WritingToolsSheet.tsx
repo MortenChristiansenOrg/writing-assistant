@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Bookmark,
@@ -8,6 +8,7 @@ import {
   Lightbulb,
   ListChecks,
   LoaderCircle,
+  MousePointer2,
   RefreshCw,
   Search,
   Send,
@@ -326,12 +327,14 @@ export function WritingToolsSheet({
     initialToolId ? tools.find((tool) => tool.id === initialToolId) ?? null : null,
   )
   const [result, setResult] = useState<ToolResult | null>(null)
-  const [resultVersion, setResultVersion] = useState(0)
+  const [runContext, setRunContext] = useState<ToolContextSnapshot | null>(null)
+  const [resultVersion, setResultVersion] = useState<number>(0)
   const [parameters, setParameters] = useState<ToolParameters>({})
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState<string>('')
   const [stage, setStage] = useState<'all' | ToolStage>('all')
-  const [running, setRunning] = useState(false)
+  const [running, setRunning] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const interactingOutsideRef = useRef<boolean>(false)
   const isMobile = useIsMobile()
 
   const visibleTools = useMemo(() => tools.filter((tool) => {
@@ -360,7 +363,9 @@ export function WritingToolsSheet({
     setError(null)
     setRunning(true)
     try {
-      const nextResult = await runPrototypeTool(tool, context, toolParameters)
+      const executionContext = context
+      const nextResult = await runPrototypeTool(tool, executionContext, toolParameters)
+      setRunContext(executionContext)
       setResult(nextResult)
       setResultVersion((version) => version + 1)
     } catch (runError) {
@@ -372,7 +377,11 @@ export function WritingToolsSheet({
   }
 
   const apply = async (operation: ToolApplyRequest['operation'], text: string) => {
-    const applied = await onApply({ operation, text, snapshot: context })
+    if (!runContext) {
+      setError('Run the tool again before changing the draft.')
+      return
+    }
+    const applied = await onApply({ operation, text, snapshot: runContext })
     if (applied) onOpenChange(false)
   }
 
@@ -381,6 +390,7 @@ export function WritingToolsSheet({
   const showToolDetails = (tool: ToolDefinition): void => {
     setSelectedTool(tool)
     setResult(null)
+    setRunContext(null)
     setParameters({})
     setError(null)
   }
@@ -391,14 +401,28 @@ export function WritingToolsSheet({
     if (!needsConfiguration) void run(tool, {})
   }
 
+  const selectedToolDisabledReason = selectedTool
+    ? getDisabledReason(selectedTool, context)
+    : null
+
+  const handleOpenChange = (nextOpen: boolean): void => {
+    if (!nextOpen && interactingOutsideRef.current) return
+    onOpenChange(nextOpen)
+  }
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} modal={isMobile}>
+    <Sheet open={open} onOpenChange={handleOpenChange} modal={false}>
       <SheetContent
-        showOverlay={isMobile}
-        onInteractOutside={(event) => {
-          if (!isMobile) event.preventDefault()
+        side={isMobile && !result ? 'bottom' : 'right'}
+        showOverlay={false}
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        onInteractOutside={() => {
+          interactingOutsideRef.current = true
+          window.setTimeout(() => {
+            interactingOutsideRef.current = false
+          }, 0)
         }}
-        className="w-full gap-0 p-0 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_input]:min-h-11 sm:max-w-md"
+        className={`${isMobile && !result ? 'h-[48dvh] max-h-[48dvh] w-full rounded-t-2xl' : 'w-full sm:max-w-md'} gap-0 p-0 max-sm:[&_button]:min-h-11 max-sm:[&_button]:min-w-11 max-sm:[&_input]:min-h-11`}
         aria-describedby="writing-tools-description"
       >
         <SheetHeader className="shrink-0 border-b pr-12">
@@ -411,6 +435,7 @@ export function WritingToolsSheet({
                 onClick={() => {
                   setSelectedTool(null)
                   setResult(null)
+                  setRunContext(null)
                   setError(null)
                 }}
               >
@@ -430,9 +455,13 @@ export function WritingToolsSheet({
           {!selectedTool && (
             <div className="flex flex-col gap-4">
               <Alert>
-                <Sparkles />
-                <AlertTitle>Prototype preview</AlertTitle>
-                <AlertDescription>Explore each interaction without an AI key. Generated content is illustrative; workflow and draft controls are the focus.</AlertDescription>
+                <MousePointer2 />
+                <AlertTitle>Tools follow your editor</AlertTitle>
+                <AlertDescription>
+                  {context.selection
+                    ? `${context.selection.text.length} characters selected. Selection tools are ready.`
+                    : 'Keep Tools open, then select text or place the cursor in the editor. Tool availability updates immediately.'}
+                </AlertDescription>
               </Alert>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -520,8 +549,15 @@ export function WritingToolsSheet({
                   ))}
                 </FieldGroup>
               )}
+              {selectedToolDisabledReason && (
+                <Alert>
+                  <MousePointer2 />
+                  <AlertTitle>Choose context in the editor</AlertTitle>
+                  <AlertDescription>{selectedToolDisabledReason} This button updates automatically.</AlertDescription>
+                </Alert>
+              )}
               {error && <Alert variant="destructive"><AlertTitle>Cannot run this tool</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-              <Button onClick={() => void run()} disabled={running} className="sticky bottom-0 min-h-11">
+              <Button onClick={() => void run()} disabled={running || selectedToolDisabledReason !== null} className="sticky bottom-0 min-h-11">
                 {running ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
                 {running ? 'Working…' : 'Use tool'}
               </Button>

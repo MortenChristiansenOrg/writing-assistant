@@ -51,7 +51,8 @@ export const WRITING_TOOLS: ToolDefinition[] = [
     produces: 'A non-destructive rewrite beside the original.',
     draftImpact: 'Nothing changes until you choose Replace selection.',
     howToUse: [
-      'Select the passage you want to experiment with, then open Tools.',
+      'Open Tools and keep the panel open while you work in the editor.',
+      'Select the passage you want to experiment with. The Use tool button becomes available as soon as text is selected.',
       'Choose Use tool and compare the Original and Suggestion tabs.',
       'Choose Replace selection to put the suggestion into your draft, or close the panel to keep the original.',
     ],
@@ -71,8 +72,8 @@ export const WRITING_TOOLS: ToolDefinition[] = [
     produces: 'Read-only observations and focused revision opportunities.',
     draftImpact: 'Review only—your draft is never edited.',
     howToUse: [
-      'Select a conversation to review just that passage, or leave everything unselected to review the whole document.',
-      'Open Tools, choose Dialogue audit, and select Use tool.',
+      'Open Tools and keep the panel open. Select a conversation in the editor to review that passage, or leave everything unselected to review the whole document.',
+      'Return to Dialogue audit and choose Use tool.',
       'Read the summary and note cards, then close the panel and make any changes you agree with directly in your draft.',
     ],
     target: 'document',
@@ -162,7 +163,8 @@ export const WRITING_TOOLS: ToolDefinition[] = [
     produces: 'Editable prose in a scratchpad.',
     draftImpact: 'Nothing changes until you choose Insert at captured cursor.',
     howToUse: [
-      'Place the cursor exactly where the continuation should begin, without selecting any text, then open Tools.',
+      'Open Tools and keep the panel open while you work in the editor.',
+      'Click exactly where the continuation should begin without selecting any text. The Use tool button updates when the cursor is ready.',
       'Choose Use tool and edit the proposed continuation in the Scratchpad.',
       'Choose Insert at captured cursor to add it. If the draft changed while the panel was open, run the tool again.',
     ],
@@ -187,13 +189,13 @@ export function getDisabledReason(
   context: ToolContextSnapshot,
 ): string | null {
   if (tool.target === 'selection' && !context.selection) {
-    return 'Select a passage in the editor, then open Tools again.'
+    return 'Keep Tools open, then select a passage in the editor.'
   }
   if (tool.target === 'cursor' && context.selection) {
-    return 'Place a cursor without selecting text, then open Tools again.'
+    return 'Keep Tools open, then click an insertion point in the editor without selecting text.'
   }
   if (tool.target === 'cursor' && context.cursor <= 1) {
-    return 'Place the cursor after some draft text, then open Tools again.'
+    return 'Keep Tools open, then place the cursor after some draft text.'
   }
   if (tool.target === 'document' && !context.documentText.trim()) {
     return 'Add a little text to the document first.'

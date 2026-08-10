@@ -32,7 +32,7 @@ describe('writing tool catalog', () => {
     const transform = WRITING_TOOLS.find((tool) => tool.id === 'alternate-pov')!
     const continueTool = WRITING_TOOLS.find((tool) => tool.id === 'continue-scene')!
 
-    expect(getDisabledReason(transform, emptyContext)).toContain('Select a passage')
+    expect(getDisabledReason(transform, emptyContext)).toContain('Keep Tools open')
     expect(getDisabledReason(continueTool, emptyContext)).toContain('cursor')
   })
 
