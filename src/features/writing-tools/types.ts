@@ -44,6 +44,7 @@ export interface ToolContextSnapshot {
   documentText: string
   selection: { text: string; from: number; to: number } | null
   cursor: number
+  cursorContext?: { before: string; after: string }
 }
 
 export interface ToolApplyRequest {
@@ -96,3 +97,11 @@ export type ToolResult =
   | ScratchpadResult
 
 export type ToolParameters = Record<string, string>
+
+export type WritingToolRunner = (
+  tool: ToolDefinition,
+  context: ToolContextSnapshot,
+  parameters: ToolParameters,
+) => Promise<ToolResult>
+
+export type ToolExecutionMode = 'ai' | 'prototype'

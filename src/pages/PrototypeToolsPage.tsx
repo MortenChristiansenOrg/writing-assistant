@@ -17,6 +17,7 @@ import type {
   ToolContextSnapshot,
 } from '@/features/writing-tools/types'
 import { applyToolText, validateToolApply } from '@/features/writing-tools/draft-apply'
+import { runPrototypeTool } from '@/features/writing-tools/prototype-runner'
 
 const prototypeDocument: DocumentContent = {
   type: 'json',
@@ -70,6 +71,7 @@ export function PrototypeToolsPage() {
       documentText: adapter.getMarkdown(),
       selection: adapter.getSelection(),
       cursor: adapter.getCursorPosition(),
+      cursorContext: adapter.getCursorContext(),
     })
   }, [])
 
@@ -85,6 +87,7 @@ export function PrototypeToolsPage() {
       documentText: adapter.getMarkdown(),
       selection: adapter.getSelection(),
       cursor: adapter.getCursorPosition(),
+      cursorContext: adapter.getCursorContext(),
     })
     setInitialToolId(toolId ?? null)
     toolsOpenRef.current = true
@@ -170,6 +173,8 @@ export function PrototypeToolsPage() {
           category={category}
           context={context}
           initialToolId={initialToolId}
+          executionMode="prototype"
+          onRun={runPrototypeTool}
           onApply={apply}
         />
       )}

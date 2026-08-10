@@ -132,6 +132,26 @@ describe('TipTapAdapter', () => {
     })
   })
 
+  describe('getCursorContext', () => {
+    it('captures text immediately before and after the cursor', () => {
+      setSelection(mockEditor, 12, 12)
+      const document = mockEditor.state.doc
+      ;(document.content as { size: number }).size = 30
+      ;(document.textBetween as ReturnType<typeof vi.fn>).mockImplementation(
+        (from: number, to: number) => from === 0 && to === 12
+          ? 'Before cursor'
+          : 'After cursor',
+      )
+
+      expect(adapter.getCursorContext()).toEqual({
+        before: 'Before cursor',
+        after: 'After cursor',
+      })
+      expect(document.textBetween).toHaveBeenCalledWith(0, 12, '\n\n')
+      expect(document.textBetween).toHaveBeenCalledWith(12, 30, '\n\n')
+    })
+  })
+
   describe('replaceSelection', () => {
     it('replaces the captured editor range and focuses the editor', () => {
       setSelection(mockEditor, 5, 15)

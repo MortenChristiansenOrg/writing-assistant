@@ -47,7 +47,6 @@ import {
   getRecommendationReason,
   TOOL_STAGES,
 } from './catalog'
-import { runPrototypeTool } from './prototype-runner'
 import type {
   OptionItem,
   OptionsResult,
@@ -61,6 +60,8 @@ import type {
   ToolStage,
   TransformResult,
   ToolApplyRequest,
+  ToolExecutionMode,
+  WritingToolRunner,
 } from './types'
 
 export type { ToolApplyRequest } from './types'
@@ -71,6 +72,8 @@ interface WritingToolsSheetProps {
   category: ProjectCategoryId
   context: ToolContextSnapshot
   initialToolId?: string | null
+  executionMode: ToolExecutionMode
+  onRun: WritingToolRunner
   onApply: (request: ToolApplyRequest) => Promise<boolean>
 }
 
@@ -320,6 +323,8 @@ export function WritingToolsSheet({
   category,
   context,
   initialToolId,
+  executionMode,
+  onRun,
   onApply,
 }: WritingToolsSheetProps) {
   const tools = getAvailableTools(category)
@@ -335,6 +340,7 @@ export function WritingToolsSheet({
   const [running, setRunning] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const interactingOutsideRef = useRef<boolean>(false)
+  const runRequestIdRef = useRef<number>(0)
   const isMobile = useIsMobile()
 
   const visibleTools = useMemo(() => tools.filter((tool) => {
@@ -360,19 +366,27 @@ export function WritingToolsSheet({
       setError(`${missing.label} is required.`)
       return
     }
+    const requestId = runRequestIdRef.current + 1
+    runRequestIdRef.current = requestId
     setError(null)
     setRunning(true)
     try {
       const executionContext = context
-      const nextResult = await runPrototypeTool(tool, executionContext, toolParameters)
+      const nextResult = await onRun(tool, executionContext, toolParameters)
+      if (requestId !== runRequestIdRef.current) return
       setRunContext(executionContext)
       setResult(nextResult)
       setResultVersion((version) => version + 1)
     } catch (runError) {
+      if (requestId !== runRequestIdRef.current) return
       console.error(runError)
-      setError('The prototype could not produce a result. Try again.')
+      setError(
+        runError instanceof Error
+          ? runError.message
+          : 'The tool could not produce a result. Try again.',
+      )
     } finally {
-      setRunning(false)
+      if (requestId === runRequestIdRef.current) setRunning(false)
     }
   }
 
@@ -388,6 +402,8 @@ export function WritingToolsSheet({
   const categoryDefinition = getProjectCategory(category)
 
   const showToolDetails = (tool: ToolDefinition): void => {
+    runRequestIdRef.current += 1
+    setRunning(false)
     setSelectedTool(tool)
     setResult(null)
     setRunContext(null)
@@ -407,6 +423,10 @@ export function WritingToolsSheet({
 
   const handleOpenChange = (nextOpen: boolean): void => {
     if (!nextOpen && interactingOutsideRef.current) return
+    if (!nextOpen) {
+      runRequestIdRef.current += 1
+      setRunning(false)
+    }
     onOpenChange(nextOpen)
   }
 
@@ -433,6 +453,8 @@ export function WritingToolsSheet({
                 size="icon"
                 aria-label="Back to tools"
                 onClick={() => {
+                  runRequestIdRef.current += 1
+                  setRunning(false)
                   setSelectedTool(null)
                   setResult(null)
                   setRunContext(null)
@@ -463,6 +485,11 @@ export function WritingToolsSheet({
                     : 'Keep Tools open, then select text or place the cursor in the editor. Tool availability updates immediately.'}
                 </AlertDescription>
               </Alert>
+              {executionMode === 'prototype' && (
+                <p className="text-xs text-muted-foreground">
+                  UX prototype mode uses illustrative placeholder output instead of your AI key.
+                </p>
+              )}
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -568,12 +595,18 @@ export function WritingToolsSheet({
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-sm font-semibold">Prototype result</p>
-                  <p className="text-xs text-muted-foreground">Review and edit before changing your draft.</p>
+                  <p className="text-sm font-semibold">
+                    {executionMode === 'ai' ? 'AI result' : 'Prototype result'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {executionMode === 'ai'
+                      ? 'Generated with your configured model. Review and edit before changing your draft.'
+                      : 'Illustrative output for evaluating the workflow.'}
+                  </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={() => void run()} disabled={running}>
                   {running ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
-                  {running ? 'Creating preview…' : 'Run again'}
+                  {running ? 'Generating…' : 'Run again'}
                 </Button>
               </div>
               {error && (

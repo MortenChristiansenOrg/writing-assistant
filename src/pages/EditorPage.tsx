@@ -28,6 +28,7 @@ import type {
   ToolContextSnapshot,
 } from '@/features/writing-tools/types'
 import { applyToolText, validateToolApply } from '@/features/writing-tools/draft-apply'
+import { useAIWritingToolRunner } from '@/features/writing-tools/useAIWritingToolRunner'
 
 const AUTOSAVE_DELAY = 500
 
@@ -121,6 +122,7 @@ function LoadedEditorPage({
   const session = useAISplitSession()
   const review = useReviewNotes(docId)
   const feedback = useAIFeedback(docId)
+  const runWritingTool = useAIWritingToolRunner(projectCategory)
 
   useEffect(() => {
     const syncCategory = (event: Event) => {
@@ -186,6 +188,7 @@ function LoadedEditorPage({
             documentText: adapter.getMarkdown(),
             selection: adapter.getSelection(),
             cursor: adapter.getCursorPosition(),
+            cursorContext: adapter.getCursorContext(),
           })
         }
       }
@@ -205,6 +208,7 @@ function LoadedEditorPage({
       documentText: adapter.getMarkdown(),
       selection: adapter.getSelection(),
       cursor: adapter.getCursorPosition(),
+      cursorContext: adapter.getCursorContext(),
     })
   }, [])
 
@@ -220,6 +224,7 @@ function LoadedEditorPage({
       documentText: adapter.getMarkdown(),
       selection: adapter.getSelection(),
       cursor: adapter.getCursorPosition(),
+      cursorContext: adapter.getCursorContext(),
     })
     setInitialToolId(toolId ?? null)
     toolsOpenRef.current = true
@@ -494,6 +499,8 @@ function LoadedEditorPage({
           category={projectCategory}
           context={toolContext}
           initialToolId={initialToolId}
+          executionMode="ai"
+          onRun={runWritingTool}
           onApply={handleToolApply}
         />
       )}

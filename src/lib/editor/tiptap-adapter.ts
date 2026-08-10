@@ -56,6 +56,15 @@ export class TipTapAdapter implements EditorAdapter {
     return this.editor.state.selection.from
   }
 
+  getCursorContext(): { before: string; after: string } {
+    const cursor = this.editor.state.selection.from
+    const documentEnd = this.editor.state.doc.content.size
+    return {
+      before: this.editor.state.doc.textBetween(0, cursor, '\n\n'),
+      after: this.editor.state.doc.textBetween(cursor, documentEnd, '\n\n'),
+    }
+  }
+
   replaceSelection(text: string): void {
     const { from, to } = this.editor.state.selection
     this.replaceRange(from, to, text)

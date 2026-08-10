@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { render, screen, waitFor, within } from '@/test/test-utils'
+import { act, render, screen, waitFor, within } from '@/test/test-utils'
 import { WritingToolsSheet } from '../WritingToolsSheet'
+import { runPrototypeTool } from '../prototype-runner'
 import type { ToolContextSnapshot } from '../types'
 
 const context: ToolContextSnapshot = {
@@ -20,6 +21,8 @@ describe('WritingToolsSheet', () => {
         onOpenChange={vi.fn()}
         category="fiction"
         context={context}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         initialToolId="alternate-pov"
         onApply={onApply}
       />,
@@ -40,6 +43,8 @@ describe('WritingToolsSheet', () => {
           ...context,
           selection: { text: 'different passage', from: 18, to: 35 },
         }}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         initialToolId="alternate-pov"
         onApply={onApply}
       />,
@@ -59,6 +64,8 @@ describe('WritingToolsSheet', () => {
         onOpenChange={vi.fn()}
         category="general"
         context={{ documentText: '', selection: null, cursor: 1 }}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         initialToolId="alternate-pov"
         onApply={vi.fn().mockResolvedValue(true)}
       />,
@@ -74,6 +81,8 @@ describe('WritingToolsSheet', () => {
         onOpenChange={vi.fn()}
         category="general"
         context={context}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         initialToolId="alternate-pov"
         onApply={vi.fn().mockResolvedValue(true)}
       />,
@@ -95,6 +104,8 @@ describe('WritingToolsSheet', () => {
           onOpenChange={onOpenChange}
           category="fiction"
           context={context}
+          executionMode="prototype"
+          onRun={runPrototypeTool}
           onApply={vi.fn().mockResolvedValue(true)}
         />
       </div>,
@@ -113,6 +124,8 @@ describe('WritingToolsSheet', () => {
         onOpenChange={vi.fn()}
         category="fiction"
         context={context}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         initialToolId="what-if"
         onApply={vi.fn().mockResolvedValue(true)}
       />,
@@ -124,8 +137,84 @@ describe('WritingToolsSheet', () => {
     expect(screen.getByText('Pinned')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Run again' }))
-    expect(screen.getByRole('button', { name: 'Creating preview…' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Generating…' })).toBeDisabled()
     await waitFor(() => expect(screen.queryByText('Pinned')).not.toBeInTheDocument())
+  })
+
+  it('shows fresh scratchpad text after running a tool again', async () => {
+    const user = userEvent.setup()
+    const onRun = vi.fn()
+      .mockResolvedValueOnce({
+        kind: 'scratchpad',
+        text: 'First continuation',
+        preferredApply: 'insert',
+      })
+      .mockResolvedValueOnce({
+        kind: 'scratchpad',
+        text: 'A genuinely different continuation',
+        preferredApply: 'insert',
+      })
+    render(
+      <WritingToolsSheet
+        open
+        onOpenChange={vi.fn()}
+        category="fiction"
+        context={{ ...context, selection: null }}
+        executionMode="ai"
+        onRun={onRun}
+        initialToolId="continue-scene"
+        onApply={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Use tool' }))
+    expect(await screen.findByDisplayValue('First continuation')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Run again' }))
+
+    expect(await screen.findByDisplayValue('A genuinely different continuation')).toBeInTheDocument()
+    expect(onRun).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores an AI response after the user leaves the running tool', async () => {
+    const user = userEvent.setup()
+    let resolveRun: ((result: {
+      kind: 'review'
+      summary: string
+      items: []
+    }) => void) | undefined
+    const onRun = vi.fn(() => new Promise<{
+      kind: 'review'
+      summary: string
+      items: []
+    }>((resolve) => {
+      resolveRun = resolve
+    }))
+    render(
+      <WritingToolsSheet
+        open
+        onOpenChange={vi.fn()}
+        category="fiction"
+        context={context}
+        executionMode="ai"
+        onRun={onRun}
+        onApply={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    const card = screen.getByText('Dialogue audit').closest<HTMLElement>('[data-slot="card"]')
+    if (!card) throw new Error('Dialogue audit card not found')
+    await user.click(within(card).getByRole('button', { name: 'Use tool' }))
+    expect(screen.getByRole('button', { name: 'Back to tools' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Back to tools' }))
+    await act(async () => {
+      resolveRun?.({ kind: 'review', summary: 'Late response', items: [] })
+    })
+
+    expect(screen.getByText('Writing tools')).toBeInTheDocument()
+    expect(screen.queryByText('Late response')).not.toBeInTheDocument()
+    expect(screen.queryByText('AI result')).not.toBeInTheDocument()
   })
 
   it('runs a ready tool directly from its catalog card', async () => {
@@ -136,6 +225,8 @@ describe('WritingToolsSheet', () => {
         onOpenChange={vi.fn()}
         category="fiction"
         context={context}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         onApply={vi.fn().mockResolvedValue(true)}
       />,
     )
@@ -156,6 +247,8 @@ describe('WritingToolsSheet', () => {
         onOpenChange={vi.fn()}
         category="fiction"
         context={context}
+        executionMode="prototype"
+        onRun={runPrototypeTool}
         onApply={vi.fn().mockResolvedValue(true)}
       />,
     )

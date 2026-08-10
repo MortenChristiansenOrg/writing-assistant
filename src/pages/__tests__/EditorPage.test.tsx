@@ -55,6 +55,7 @@ const editorAdapter: EditorAdapter = {
   setContent: vi.fn(),
   getSelection: () => currentSelection,
   getCursorPosition: () => currentSelection?.to ?? 1,
+  getCursorContext: () => ({ before: 'original', after: '' }),
   replaceSelection: vi.fn(),
   insertAtCursor: vi.fn(),
   focus: vi.fn(),
@@ -214,6 +215,9 @@ vi.mock('@/hooks/useAISplitSession', () => ({
     finish,
     cancelAll: vi.fn(),
   }),
+}))
+vi.mock('@/features/writing-tools/useAIWritingToolRunner', () => ({
+  useAIWritingToolRunner: () => vi.fn(),
 }))
 
 vi.mock('sonner', () => ({
