@@ -115,6 +115,8 @@ describe('WritingToolsSheet', () => {
     if (!alternateCard) throw new Error('Alternate point of view card not found')
     await user.click(within(alternateCard).getByRole('button', { name: 'Details' }))
     expect(screen.getByText('Draft impact')).toBeInTheDocument()
+    expect(screen.getByText('How to use this tool')).toBeInTheDocument()
+    expect(screen.getByText(/Select the passage you want to experiment with/)).toBeInTheDocument()
     expect(screen.queryByText('Prototype result')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Back to tools' }))

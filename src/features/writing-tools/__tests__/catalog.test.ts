@@ -21,6 +21,13 @@ describe('writing tool catalog', () => {
     }
   })
 
+  it('gives every tool practical application instructions', () => {
+    for (const tool of WRITING_TOOLS) {
+      expect(tool.howToUse.length).toBeGreaterThanOrEqual(3)
+      expect(tool.howToUse.every((step) => step.trim().length > 0)).toBe(true)
+    }
+  })
+
   it('explains why tools cannot run instead of hiding them', () => {
     const transform = WRITING_TOOLS.find((tool) => tool.id === 'alternate-pov')!
     const continueTool = WRITING_TOOLS.find((tool) => tool.id === 'continue-scene')!

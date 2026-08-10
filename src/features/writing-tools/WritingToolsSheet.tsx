@@ -6,6 +6,7 @@ import {
   Clipboard,
   FilePenLine,
   Lightbulb,
+  ListChecks,
   LoaderCircle,
   RefreshCw,
   Search,
@@ -481,6 +482,17 @@ export function WritingToolsSheet({
                 <DetailRow label="Produces">{selectedTool.produces}</DetailRow>
                 <DetailRow label="Draft impact">{selectedTool.draftImpact}</DetailRow>
               </dl>
+              <Alert>
+                <ListChecks />
+                <AlertTitle>How to use this tool</AlertTitle>
+                <AlertDescription>
+                  <ol className="flex list-decimal flex-col gap-2 pl-5">
+                    {selectedTool.howToUse.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </AlertDescription>
+              </Alert>
               {selectedTool.parameters && (
                 <FieldGroup>
                   {selectedTool.parameters.map((parameter) => (

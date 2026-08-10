@@ -24,6 +24,7 @@ export interface ToolDefinition {
   needs: string
   produces: string
   draftImpact: string
+  howToUse: string[]
   target: ToolTarget
   resultKind: ToolResultKind
   stage: ToolStage
