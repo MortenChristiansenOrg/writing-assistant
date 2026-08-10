@@ -12,6 +12,16 @@ import type {
 
 const errorResponseSchema = z.object({ error: z.string().min(1) })
 const streamErrorMarker = '__AI_ERROR__:'
+// The shared streaming endpoint derives its output allowance from the prompt
+// length. Tool instructions live separately in `customPrompt`, so short drafts
+// otherwise receive only 256 output tokens and structured JSON can be cut off.
+// Padding reaches the endpoint's 4,096-token ceiling without changing the
+// manuscript content or encouraging the model to produce a longer response.
+const minimumBudgetInputCharacters = 5_500
+
+export function ensureWritingToolOutputBudget(text: string): string {
+  return text.padEnd(minimumBudgetInputCharacters, ' ')
+}
 
 export function useAIWritingToolRunner(
   category: ProjectCategoryId,
@@ -36,8 +46,8 @@ export function useAIWritingToolRunner(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        action: 'rewrite',
-        text: request.text,
+        action: 'longer',
+        text: ensureWritingToolOutputBudget(request.text),
         customPrompt: request.customPrompt,
         model: settings.defaultModel ?? 'anthropic/claude-sonnet-5',
       }),

@@ -137,7 +137,7 @@ describe('WritingToolsSheet', () => {
     expect(screen.getByText('Pinned')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Run again' }))
-    expect(screen.getByRole('button', { name: 'Generating…' })).toBeDisabled()
+    expect(screen.getByText('Creating preview…')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText('Pinned')).not.toBeInTheDocument())
   })
 
@@ -174,6 +174,49 @@ describe('WritingToolsSheet', () => {
 
     expect(await screen.findByDisplayValue('A genuinely different continuation')).toBeInTheDocument()
     expect(onRun).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses the runner to remix an option with manuscript context', async () => {
+    const user = userEvent.setup()
+    const onRun = vi.fn()
+      .mockResolvedValueOnce({
+        kind: 'options',
+        items: [
+          { id: 'one', title: 'First path', body: 'The door opens.', rationale: 'Adds pressure.' },
+          { id: 'two', title: 'Second path', body: 'The key breaks.', rationale: 'Raises cost.' },
+          { id: 'three', title: 'Third path', body: 'A witness arrives.', rationale: 'Changes power.' },
+        ],
+      })
+      .mockResolvedValueOnce({
+        kind: 'options',
+        items: [
+          { id: 'fresh', title: 'Remixed path', body: 'The dog takes the key.', rationale: 'Uses an established detail.' },
+          { id: 'fresh-two', title: 'Another path', body: 'The lock changes.', rationale: 'Complicates entry.' },
+          { id: 'fresh-three', title: 'Last path', body: 'Ivo relents.', rationale: 'Shifts motive.' },
+        ],
+      })
+    render(
+      <WritingToolsSheet
+        open
+        onOpenChange={vi.fn()}
+        category="fiction"
+        context={context}
+        executionMode="ai"
+        onRun={onRun}
+        initialToolId="what-if"
+        onApply={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    await user.click(screen.getByRole('button', { name: 'Use tool' }))
+    expect(await screen.findByText('First path')).toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: 'Remix' })[0]!)
+
+    expect(await screen.findByText('Remixed path')).toBeInTheDocument()
+    expect(onRun).toHaveBeenCalledTimes(2)
+    expect(onRun.mock.calls[1]?.[2]).toEqual(expect.objectContaining({
+      question: expect.stringContaining('The door opens.'),
+    }))
   })
 
   it('ignores an AI response after the user leaves the running tool', async () => {
@@ -239,6 +282,46 @@ describe('WritingToolsSheet', () => {
     expect(screen.getByText('Read-only review')).toBeInTheDocument()
   })
 
+  it('shows progress instead of tool details after direct use', async () => {
+    const user = userEvent.setup()
+    let resolveRun: ((result: {
+      kind: 'review'
+      summary: string
+      items: []
+    }) => void) | undefined
+    const onRun = vi.fn(() => new Promise<{
+      kind: 'review'
+      summary: string
+      items: []
+    }>((resolve) => {
+      resolveRun = resolve
+    }))
+    render(
+      <WritingToolsSheet
+        open
+        onOpenChange={vi.fn()}
+        category="fiction"
+        context={context}
+        executionMode="ai"
+        onRun={onRun}
+        onApply={vi.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    const card = screen.getByText('Dialogue audit').closest<HTMLElement>('[data-slot="card"]')
+    if (!card) throw new Error('Dialogue audit card not found')
+    await user.click(within(card).getByRole('button', { name: 'Use tool' }))
+
+    expect(screen.getByText('Generating with your AI model…')).toBeInTheDocument()
+    expect(screen.queryByText('Draft impact')).not.toBeInTheDocument()
+    expect(screen.queryByText('How to use this tool')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveRun?.({ kind: 'review', summary: 'Specific result', items: [] })
+    })
+    expect(await screen.findByText('Specific result')).toBeInTheDocument()
+  })
+
   it('keeps details separate and opens required configuration from Use tool', async () => {
     const user = userEvent.setup()
     render(
@@ -267,6 +350,8 @@ describe('WritingToolsSheet', () => {
     await user.click(within(blueprintCard).getByRole('button', { name: 'Use tool' }))
 
     expect(screen.getByLabelText('Goal *')).toBeInTheDocument()
+    expect(screen.queryByText('Draft impact')).not.toBeInTheDocument()
+    expect(screen.queryByText('How to use this tool')).not.toBeInTheDocument()
     expect(screen.queryByText('Prototype result')).not.toBeInTheDocument()
   })
 })

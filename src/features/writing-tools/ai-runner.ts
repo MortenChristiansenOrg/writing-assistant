@@ -67,7 +67,7 @@ export function buildAIWritingToolRequest(
   if (tool.id === 'dialogue-audit') {
     return {
       text: manuscriptContext(context),
-      customPrompt: `${shared}\n\nAudit the selected passage, or the full manuscript when no passage is selected, for dialogue voice, subtext, exposition, rhythm, and conversational turns. Make every observation specific to wording or dynamics in this manuscript. Return only valid JSON in this exact shape, without markdown fences: {"summary":"specific overall assessment","items":[{"title":"short finding","body":"specific evidence and practical revision direction","severity":"note or opportunity"}]}. Include 2 to 4 concise items and keep the complete response under 180 words.`,
+      customPrompt: `${shared}\n\nAudit the selected passage, or the full manuscript when no passage is selected, for dialogue voice, subtext, exposition, rhythm, and conversational turns. Make every observation specific to wording or dynamics in this manuscript. Return only valid JSON in this exact shape, without markdown fences: {"summary":"specific overall assessment","items":[{"title":"short finding","body":"specific evidence and practical revision direction","severity":"note or opportunity"}]}. Include 2 to 4 concise items and keep the complete response under 120 words.`,
     }
   }
 
@@ -75,14 +75,14 @@ export function buildAIWritingToolRequest(
     const question = parameters.question?.trim()
     return {
       text: `${manuscriptContext(context)}${question ? `\n\n<writer-question>\n${leadingExcerpt(question, 3_000)}\n</writer-question>` : ''}`,
-      customPrompt: `${shared}\n\nGenerate exactly three meaningfully different next directions grounded in the characters, tensions, and details already present. When a writer-question is supplied, explore it. Return only valid JSON in this exact shape, without markdown fences: {"items":[{"title":"concise direction","body":"concrete development specific to this manuscript","rationale":"why this direction could work"}]}. Keep the complete response under 180 words.`,
+      customPrompt: `${shared}\n\nGenerate exactly three meaningfully different next directions grounded in the characters, tensions, and details already present. When a writer-question is supplied, explore it. Return only valid JSON in this exact shape, without markdown fences: {"items":[{"title":"concise direction","body":"concrete development specific to this manuscript","rationale":"why this direction could work"}]}. Keep the complete response under 120 words.`,
     }
   }
 
   if (tool.id === 'scene-blueprint') {
     return {
       text: `${manuscriptContext(context)}\n\n<scene-goal>\n${leadingExcerpt(parameters.goal ?? '', 3_000)}\n</scene-goal>\n\n<scene-obstacle>\n${leadingExcerpt(parameters.obstacle ?? '', 3_000)}\n</scene-obstacle>\n\n<scene-turn>\n${leadingExcerpt(parameters.turn ?? '', 3_000)}\n</scene-turn>`,
-      customPrompt: `${shared}\n\nCreate a practical scene blueprint grounded in the manuscript and the supplied scene-goal, scene-obstacle, and scene-turn. Build 6 to 8 escalating beats with concrete actions, reversals, and choices. Return only the editable blueprint, with a short heading and concise bullet points; do not write the finished scene. Keep it under 180 words.`,
+      customPrompt: `${shared}\n\nCreate a practical scene blueprint grounded in the manuscript and the supplied scene-goal, scene-obstacle, and scene-turn. Build 6 to 8 escalating beats with concrete actions, reversals, and choices. Return only the editable blueprint, with a short heading and concise bullet points; do not write the finished scene. Keep it under 120 words.`,
     }
   }
 
@@ -92,7 +92,7 @@ export function buildAIWritingToolRequest(
   }
   return {
     text: `<before-cursor>\n${trailingExcerpt(cursorContext.before, 45_000)}\n</before-cursor>\n\n<after-cursor>\n${leadingExcerpt(cursorContext.after, 45_000)}\n</after-cursor>`,
-    customPrompt: `${shared}\n\nContinue the manuscript exactly at the cursor. Write one to three paragraphs that match the established voice, tense, pacing, and level of detail. Advance the immediate action or thought with a specific new beat; do not summarize, repeat the final sentence, or explain your choices. If text follows the cursor, make the continuation connect naturally to it. Return only the new prose to insert.`,
+    customPrompt: `${shared}\n\nContinue the manuscript exactly at the cursor. Write 60 to 100 words that match the established voice, tense, pacing, and level of detail. Advance the immediate action or thought with a specific new beat; do not summarize, repeat the final sentence, or explain your choices. If text follows the cursor, make the continuation connect naturally to it. Return only the new prose to insert.`,
   }
 }
 

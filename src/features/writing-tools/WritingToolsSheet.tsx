@@ -77,12 +77,60 @@ interface WritingToolsSheetProps {
   onApply: (request: ToolApplyRequest) => Promise<boolean>
 }
 
+type ToolScreen =
+  | 'catalog'
+  | 'details'
+  | 'configure'
+  | 'running'
+  | 'result'
+  | 'error'
+
 function DetailRow({ label, children }: { label: string; children: string }) {
   return (
     <div className="grid gap-1 sm:grid-cols-[7rem_1fr] sm:gap-3">
       <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className="text-sm leading-relaxed">{children}</dd>
     </div>
+  )
+}
+
+function ToolParameterFields({
+  tool,
+  parameters,
+  onChange,
+}: {
+  tool: ToolDefinition
+  parameters: ToolParameters
+  onChange: (id: string, value: string) => void
+}) {
+  if (!tool.parameters) return null
+
+  return (
+    <FieldGroup>
+      {tool.parameters.map((parameter) => (
+        <Field key={parameter.id}>
+          <FieldLabel htmlFor={`tool-parameter-${parameter.id}`}>
+            {parameter.label}{parameter.required ? ' *' : ''}
+          </FieldLabel>
+          {parameter.multiline ? (
+            <Textarea
+              id={`tool-parameter-${parameter.id}`}
+              value={parameters[parameter.id] ?? ''}
+              onChange={(event) => onChange(parameter.id, event.target.value)}
+              placeholder={parameter.placeholder}
+            />
+          ) : (
+            <Input
+              id={`tool-parameter-${parameter.id}`}
+              value={parameters[parameter.id] ?? ''}
+              onChange={(event) => onChange(parameter.id, event.target.value)}
+              placeholder={parameter.placeholder}
+            />
+          )}
+          <FieldDescription>{parameter.description}</FieldDescription>
+        </Field>
+      ))}
+    </FieldGroup>
   )
 }
 
@@ -191,12 +239,32 @@ function ReviewToolResult({ result }: { result: ReviewResult }) {
 function OptionsToolResult({
   result,
   onScratchpad,
+  onRemix,
 }: {
   result: OptionsResult
   onScratchpad: (option: OptionItem) => void
+  onRemix: (option: OptionItem) => Promise<OptionItem>
 }) {
   const [items, setItems] = useState(result.items)
   const [pinned, setPinned] = useState<Set<string>>(() => new Set())
+  const [remixingId, setRemixingId] = useState<string | null>(null)
+  const [remixError, setRemixError] = useState<string | null>(null)
+
+  const remix = async (item: OptionItem): Promise<void> => {
+    setRemixingId(item.id)
+    setRemixError(null)
+    try {
+      const replacement = await onRemix(item)
+      setItems((current) => current.map((candidate) =>
+        candidate.id === item.id ? { ...replacement, id: item.id } : candidate
+      ))
+    } catch (error) {
+      console.error(error)
+      setRemixError(error instanceof Error ? error.message : 'Could not remix this path.')
+    } finally {
+      setRemixingId(null)
+    }
+  }
 
   if (items.length === 0) {
     return (
@@ -212,6 +280,12 @@ function OptionsToolResult({
 
   return (
     <div className="flex flex-col gap-4">
+      {remixError && (
+        <Alert variant="destructive">
+          <AlertTitle>Could not remix this path</AlertTitle>
+          <AlertDescription>{remixError}</AlertDescription>
+        </Alert>
+      )}
       {items.map((item) => (
         <Card key={item.id} className="gap-4 py-4 shadow-none">
           <CardHeader className="px-4">
@@ -243,14 +317,13 @@ function OptionsToolResult({
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setItems((current) => current.map((candidate) =>
-                candidate.id === item.id
-                  ? { ...candidate, body: `${candidate.body} Now invert who has the most to lose.` }
-                  : candidate
-              ))}
+              onClick={() => void remix(item)}
+              disabled={remixingId !== null}
             >
-              <RefreshCw data-icon="inline-start" />
-              Remix
+              {remixingId === item.id
+                ? <LoaderCircle className="animate-spin" data-icon="inline-start" />
+                : <RefreshCw data-icon="inline-start" />}
+              {remixingId === item.id ? 'Remixing…' : 'Remix'}
             </Button>
             <Button
               variant="ghost"
@@ -331,13 +404,17 @@ export function WritingToolsSheet({
   const [selectedTool, setSelectedTool] = useState<ToolDefinition | null>(() =>
     initialToolId ? tools.find((tool) => tool.id === initialToolId) ?? null : null,
   )
+  const [screen, setScreen] = useState<ToolScreen>(() =>
+    initialToolId && tools.some((tool) => tool.id === initialToolId)
+      ? 'details'
+      : 'catalog',
+  )
   const [result, setResult] = useState<ToolResult | null>(null)
   const [runContext, setRunContext] = useState<ToolContextSnapshot | null>(null)
   const [resultVersion, setResultVersion] = useState<number>(0)
   const [parameters, setParameters] = useState<ToolParameters>({})
   const [query, setQuery] = useState<string>('')
   const [stage, setStage] = useState<'all' | ToolStage>('all')
-  const [running, setRunning] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const interactingOutsideRef = useRef<boolean>(false)
   const runRequestIdRef = useRef<number>(0)
@@ -357,6 +434,7 @@ export function WritingToolsSheet({
     const disabledReason = getDisabledReason(tool, context)
     if (disabledReason) {
       setError(disabledReason)
+      setScreen(tool.parameters?.length ? 'configure' : 'error')
       return
     }
     const missing = tool.parameters?.find(
@@ -364,12 +442,13 @@ export function WritingToolsSheet({
     )
     if (missing) {
       setError(`${missing.label} is required.`)
+      setScreen('configure')
       return
     }
     const requestId = runRequestIdRef.current + 1
     runRequestIdRef.current = requestId
     setError(null)
-    setRunning(true)
+    setScreen('running')
     try {
       const executionContext = context
       const nextResult = await onRun(tool, executionContext, toolParameters)
@@ -377,6 +456,7 @@ export function WritingToolsSheet({
       setRunContext(executionContext)
       setResult(nextResult)
       setResultVersion((version) => version + 1)
+      setScreen('result')
     } catch (runError) {
       if (requestId !== runRequestIdRef.current) return
       console.error(runError)
@@ -385,8 +465,7 @@ export function WritingToolsSheet({
           ? runError.message
           : 'The tool could not produce a result. Try again.',
       )
-    } finally {
-      if (requestId === runRequestIdRef.current) setRunning(false)
+      setScreen('error')
     }
   }
 
@@ -399,22 +478,49 @@ export function WritingToolsSheet({
     if (applied) onOpenChange(false)
   }
 
+  const remixOption = async (option: OptionItem): Promise<OptionItem> => {
+    if (!selectedTool || !runContext) {
+      throw new Error('Run the tool again before remixing a path.')
+    }
+    const question = [
+      parameters.question?.trim(),
+      `Create fresh alternatives to this existing path without merely paraphrasing it:\nTitle: ${option.title}\nDirection: ${option.body}\nReason it may work: ${option.rationale}`,
+    ].filter(Boolean).join('\n\n')
+    const remixedResult = await onRun(selectedTool, runContext, {
+      ...parameters,
+      question,
+    })
+    if (remixedResult.kind !== 'options' || !remixedResult.items[0]) {
+      throw new Error('The AI returned an unexpected remix. Try again.')
+    }
+    return remixedResult.items[0]
+  }
+
   const categoryDefinition = getProjectCategory(category)
 
   const showToolDetails = (tool: ToolDefinition): void => {
     runRequestIdRef.current += 1
-    setRunning(false)
     setSelectedTool(tool)
     setResult(null)
     setRunContext(null)
     setParameters({})
     setError(null)
+    setScreen('details')
   }
 
   const launchTool = (tool: ToolDefinition): void => {
-    showToolDetails(tool)
+    runRequestIdRef.current += 1
+    setSelectedTool(tool)
+    setResult(null)
+    setRunContext(null)
+    setParameters({})
+    setError(null)
     const needsConfiguration = tool.parameters?.some((parameter) => parameter.required) ?? false
-    if (!needsConfiguration) void run(tool, {})
+    if (needsConfiguration) {
+      setScreen('configure')
+      return
+    }
+    void run(tool, {})
   }
 
   const selectedToolDisabledReason = selectedTool
@@ -425,9 +531,17 @@ export function WritingToolsSheet({
     if (!nextOpen && interactingOutsideRef.current) return
     if (!nextOpen) {
       runRequestIdRef.current += 1
-      setRunning(false)
     }
     onOpenChange(nextOpen)
+  }
+
+  const returnToCatalog = (): void => {
+    runRequestIdRef.current += 1
+    setSelectedTool(null)
+    setResult(null)
+    setRunContext(null)
+    setError(null)
+    setScreen('catalog')
   }
 
   return (
@@ -447,19 +561,12 @@ export function WritingToolsSheet({
       >
         <SheetHeader className="shrink-0 border-b pr-12">
           <div className="flex items-center gap-2">
-            {(selectedTool || result) && (
+            {screen !== 'catalog' && (
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Back to tools"
-                onClick={() => {
-                  runRequestIdRef.current += 1
-                  setRunning(false)
-                  setSelectedTool(null)
-                  setResult(null)
-                  setRunContext(null)
-                  setError(null)
-                }}
+                onClick={returnToCatalog}
               >
                 <ArrowLeft />
               </Button>
@@ -474,7 +581,7 @@ export function WritingToolsSheet({
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-5">
-          {!selectedTool && (
+          {screen === 'catalog' && (
             <div className="flex flex-col gap-4">
               <Alert>
                 <MousePointer2 />
@@ -529,7 +636,7 @@ export function WritingToolsSheet({
             </div>
           )}
 
-          {selectedTool && !result && (
+          {selectedTool && screen === 'details' && (
             <div className="flex flex-col gap-5">
               <dl className="flex flex-col gap-3 rounded-xl border bg-muted/20 p-4">
                 <DetailRow label="Helps with">{selectedTool.helpsWith}</DetailRow>
@@ -549,33 +656,14 @@ export function WritingToolsSheet({
                   </ol>
                 </AlertDescription>
               </Alert>
-              {selectedTool.parameters && (
-                <FieldGroup>
-                  {selectedTool.parameters.map((parameter) => (
-                    <Field key={parameter.id}>
-                      <FieldLabel htmlFor={`tool-parameter-${parameter.id}`}>
-                        {parameter.label}{parameter.required ? ' *' : ''}
-                      </FieldLabel>
-                      {parameter.multiline ? (
-                        <Textarea
-                          id={`tool-parameter-${parameter.id}`}
-                          value={parameters[parameter.id] ?? ''}
-                          onChange={(event) => setParameters((current) => ({ ...current, [parameter.id]: event.target.value }))}
-                          placeholder={parameter.placeholder}
-                        />
-                      ) : (
-                        <Input
-                          id={`tool-parameter-${parameter.id}`}
-                          value={parameters[parameter.id] ?? ''}
-                          onChange={(event) => setParameters((current) => ({ ...current, [parameter.id]: event.target.value }))}
-                          placeholder={parameter.placeholder}
-                        />
-                      )}
-                      <FieldDescription>{parameter.description}</FieldDescription>
-                    </Field>
-                  ))}
-                </FieldGroup>
-              )}
+              <ToolParameterFields
+                tool={selectedTool}
+                parameters={parameters}
+                onChange={(id, value) => setParameters((current) => ({
+                  ...current,
+                  [id]: value,
+                }))}
+              />
               {selectedToolDisabledReason && (
                 <Alert>
                   <MousePointer2 />
@@ -583,15 +671,81 @@ export function WritingToolsSheet({
                   <AlertDescription>{selectedToolDisabledReason} This button updates automatically.</AlertDescription>
                 </Alert>
               )}
-              {error && <Alert variant="destructive"><AlertTitle>Cannot run this tool</AlertTitle><AlertDescription>{error}</AlertDescription></Alert>}
-              <Button onClick={() => void run()} disabled={running || selectedToolDisabledReason !== null} className="sticky bottom-0 min-h-11">
-                {running ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
-                {running ? 'Working…' : 'Use tool'}
+              <Button onClick={() => void run()} disabled={selectedToolDisabledReason !== null} className="sticky bottom-0 min-h-11">
+                <Sparkles data-icon="inline-start" />
+                Use tool
               </Button>
             </div>
           )}
 
-          {selectedTool && result && (
+          {selectedTool && screen === 'configure' && (
+            <div className="flex flex-col gap-5">
+              <Alert>
+                <Sparkles />
+                <AlertTitle>Set up {selectedTool.name}</AlertTitle>
+                <AlertDescription>
+                  Provide the inputs below, then generate a result. Tool details remain available from the catalog.
+                </AlertDescription>
+              </Alert>
+              <ToolParameterFields
+                tool={selectedTool}
+                parameters={parameters}
+                onChange={(id, value) => setParameters((current) => ({
+                  ...current,
+                  [id]: value,
+                }))}
+              />
+              {selectedToolDisabledReason && (
+                <Alert>
+                  <MousePointer2 />
+                  <AlertTitle>Choose context in the editor</AlertTitle>
+                  <AlertDescription>{selectedToolDisabledReason} This button updates automatically.</AlertDescription>
+                </Alert>
+              )}
+              {error && (
+                <Alert variant="destructive">
+                  <AlertTitle>Check the setup</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              <Button onClick={() => void run()} disabled={selectedToolDisabledReason !== null} className="sticky bottom-0 min-h-11">
+                <Sparkles data-icon="inline-start" />
+                Use tool
+              </Button>
+            </div>
+          )}
+
+          {selectedTool && screen === 'running' && (
+            <div className="flex min-h-64 flex-col items-center justify-center gap-4 text-center">
+              <LoaderCircle className="size-8 animate-spin text-primary" />
+              <div className="flex flex-col gap-1">
+                <p className="font-semibold">
+                  {executionMode === 'ai' ? 'Generating with your AI model…' : 'Creating preview…'}
+                </p>
+                <p className="max-w-xs text-sm text-muted-foreground">
+                  Using the current manuscript context. Your draft will not change automatically.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {selectedTool && screen === 'error' && error && (
+            <div className="flex flex-col gap-4">
+              <Alert variant="destructive">
+                <AlertTitle>Could not run {selectedTool.name}</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+              <Button onClick={() => void run()}>
+                <RefreshCw data-icon="inline-start" />
+                Try again
+              </Button>
+              <Button variant="outline" onClick={returnToCatalog}>
+                Back to tools
+              </Button>
+            </div>
+          )}
+
+          {selectedTool && result && screen === 'result' && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -604,9 +758,9 @@ export function WritingToolsSheet({
                       : 'Illustrative output for evaluating the workflow.'}
                   </p>
                 </div>
-                <Button variant="ghost" size="sm" onClick={() => void run()} disabled={running}>
-                  {running ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <RefreshCw data-icon="inline-start" />}
-                  {running ? 'Generating…' : 'Run again'}
+                <Button variant="ghost" size="sm" onClick={() => void run()}>
+                  <RefreshCw data-icon="inline-start" />
+                  Run again
                 </Button>
               </div>
               {error && (
@@ -625,6 +779,7 @@ export function WritingToolsSheet({
                     setResult({ kind: 'scratchpad', text: `${option.title}\n\n${option.body}\n\nWhy it may work: ${option.rationale}`, preferredApply: 'append' })
                     setResultVersion((version) => version + 1)
                   }}
+                  onRemix={remixOption}
                 />
               )}
               {result.kind === 'scratchpad' && (
