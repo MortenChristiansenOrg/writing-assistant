@@ -194,9 +194,9 @@ export function getDisabledReason(
   if (
     tool.target === 'selection'
     && context.selection
-    && context.selection.text.length > 12_000
+    && context.selection.text.length > 5_000
   ) {
-    return 'Select a passage shorter than 12,000 characters so the AI can return a complete rewrite.'
+    return 'Select a passage shorter than 5,000 characters so the AI can return a complete rewrite.'
   }
   if (tool.target === 'cursor' && context.selection) {
     return 'Keep Tools open, then click an insertion point in the editor without selecting text.'

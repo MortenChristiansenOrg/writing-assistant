@@ -62,12 +62,12 @@ describe('writing tool catalog', () => {
 
   it('prevents passage rewrites that cannot fit in one complete AI response', () => {
     const transform = WRITING_TOOLS.find((tool) => tool.id === 'alternate-pov')!
-    const oversizedPassage = 'a'.repeat(12_001)
+    const oversizedPassage = 'a'.repeat(5_001)
 
     expect(getDisabledReason(transform, {
       documentText: oversizedPassage,
-      selection: { text: oversizedPassage, from: 1, to: 12_002 },
-      cursor: 12_002,
-    })).toContain('shorter than 12,000 characters')
+      selection: { text: oversizedPassage, from: 1, to: 5_002 },
+      cursor: 5_002,
+    })).toContain('shorter than 5,000 characters')
   })
 })

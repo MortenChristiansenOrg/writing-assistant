@@ -1,5 +1,6 @@
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 import {
+  APICallError,
   generateText,
   Output,
   streamText,
@@ -43,6 +44,13 @@ const feedbackInput = z.object({
   projectDescription: z.string().max(10_000).optional(),
   documentDescription: z.string().max(10_000).optional(),
   focusArea: z.string().max(5_000).optional(),
+})
+
+const writingToolInput = z.object({
+  text: z.string().min(1).max(100_000),
+  instructions: z.string().min(1).max(10_000),
+  model: modelSchema.optional(),
+  maxOutputTokens: z.number().int().min(256).max(2_048),
 })
 
 const feedbackNote = z.object({
@@ -141,6 +149,73 @@ async function authenticate(ctx: ActionCtx, request: Request) {
 
   return { identity, apiKey }
 }
+
+function providerErrorMessage(error: unknown): string {
+  if (!APICallError.isInstance(error)) {
+    return 'The AI provider could not complete the request. Try again.'
+  }
+  if (error.statusCode === 402) {
+    return 'OpenRouter rejected the request because the API key has insufficient credits or a spending limit. Check the key in OpenRouter, then try again.'
+  }
+  if (error.statusCode === 401 || error.statusCode === 403) {
+    return 'OpenRouter rejected the API key. Check the key in Settings, then try again.'
+  }
+  if (error.statusCode === 429) {
+    return 'OpenRouter is rate limiting this key. Wait a moment, then try again.'
+  }
+  return 'The AI provider rejected the request. Try again.'
+}
+
+export const runWritingTool = httpAction(async (ctx, request) => {
+  const authentication = await authenticate(ctx, request)
+  if ('response' in authentication) return authentication.response
+
+  const parsed = writingToolInput.safeParse(await request.json().catch(() => null))
+  if (!parsed.success) {
+    return jsonResponse(request, { error: 'Invalid writing tool request' }, 400)
+  }
+
+  const {
+    text,
+    instructions,
+    model,
+    maxOutputTokens,
+  } = parsed.data
+  const selectedModel = model ?? 'anthropic/claude-sonnet-5'
+
+  try {
+    const openrouter = createOpenRouter({ apiKey: authentication.apiKey })
+    const result = await generateText({
+      model: openrouter(selectedModel, { usage: { include: true } }),
+      instructions,
+      prompt: text,
+      maxOutputTokens,
+    })
+    if (!result.text.trim()) {
+      return jsonResponse(
+        request,
+        { error: 'The AI provider returned no content. Try again.' },
+        502,
+      )
+    }
+    await recordUsage(
+      ctx,
+      authentication.identity.tokenIdentifier,
+      selectedModel,
+      result.usage,
+      result.finalStep.providerMetadata,
+    )
+    return jsonResponse(request, { text: result.text })
+  } catch (error) {
+    console.error(
+      'Writing tool AI request failed',
+      APICallError.isInstance(error)
+        ? { statusCode: error.statusCode, isRetryable: error.isRetryable }
+        : error instanceof Error ? error.name : 'Unknown error',
+    )
+    return jsonResponse(request, { error: providerErrorMessage(error) }, 502)
+  }
+})
 
 export const stream = httpAction(async (ctx, request) => {
   const authentication = await authenticate(ctx, request)

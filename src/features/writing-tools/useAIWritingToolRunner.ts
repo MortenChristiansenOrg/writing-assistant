@@ -11,16 +11,12 @@ import type {
 } from './types'
 
 const errorResponseSchema = z.object({ error: z.string().min(1) })
-const streamErrorMarker = '__AI_ERROR__:'
-// The shared streaming endpoint derives its output allowance from the prompt
-// length. Tool instructions live separately in `customPrompt`, so short drafts
-// otherwise receive only 256 output tokens and structured JSON can be cut off.
-// Padding reaches the endpoint's 4,096-token ceiling without changing the
-// manuscript content or encouraging the model to produce a longer response.
-const minimumBudgetInputCharacters = 5_500
+const successResponseSchema = z.object({ text: z.string().min(1) })
 
-export function ensureWritingToolOutputBudget(text: string): string {
-  return text.padEnd(minimumBudgetInputCharacters, ' ')
+export function writingToolOutputBudget(toolId: string): number {
+  if (toolId === 'continue-scene') return 512
+  if (toolId === 'alternate-pov') return 1_536
+  return 768
 }
 
 export function useAIWritingToolRunner(
@@ -39,17 +35,17 @@ export function useAIWritingToolRunner(
 
     const token = await getConvexHttpToken()
     const request = buildAIWritingToolRequest(tool, category, context, parameters)
-    const response = await fetch(`${convexSiteUrl}/ai/stream`, {
+    const response = await fetch(`${convexSiteUrl}/ai/tools/run`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        action: 'longer',
-        text: ensureWritingToolOutputBudget(request.text),
-        customPrompt: request.customPrompt,
+        text: request.text,
+        instructions: request.customPrompt,
         model: settings.defaultModel ?? 'anthropic/claude-sonnet-5',
+        maxOutputTokens: writingToolOutputBudget(tool.id),
       }),
     })
 
@@ -60,12 +56,13 @@ export function useAIWritingToolRunner(
       throw new Error(payload.success ? payload.data.error : 'AI request failed')
     }
 
-    const responseText = await response.text()
-    const errorOffset = responseText.indexOf(streamErrorMarker)
-    if (errorOffset >= 0) {
-      throw new Error(responseText.slice(errorOffset + streamErrorMarker.length))
+    const payload = successResponseSchema.safeParse(
+      await response.json().catch(() => null),
+    )
+    if (!payload.success) {
+      throw new Error('The AI provider returned an invalid response. Try again.')
     }
 
-    return parseAIWritingToolResult(tool, context, responseText)
+    return parseAIWritingToolResult(tool, context, payload.data.text)
   }, [category, getConvexHttpToken, settings])
 }

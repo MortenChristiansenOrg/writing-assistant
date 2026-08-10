@@ -1,5 +1,5 @@
 import { httpRouter } from 'convex/server'
-import { stream, feedback } from './ai'
+import { feedback, runWritingTool, stream } from './ai'
 import {
   deleteOpenRouterKey,
   preflight,
@@ -30,6 +30,18 @@ http.route({
   path: '/ai/feedback',
   method: 'POST',
   handler: feedback,
+})
+
+http.route({
+  path: '/ai/tools/run',
+  method: 'OPTIONS',
+  handler: preflight,
+})
+
+http.route({
+  path: '/ai/tools/run',
+  method: 'POST',
+  handler: runWritingTool,
 })
 
 http.route({

@@ -3,7 +3,10 @@ import { useAuth } from '@clerk/react'
 import { useQuery } from 'convex/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WRITING_TOOLS } from '../catalog'
-import { useAIWritingToolRunner } from '../useAIWritingToolRunner'
+import {
+  useAIWritingToolRunner,
+  writingToolOutputBudget,
+} from '../useAIWritingToolRunner'
 import type { ToolContextSnapshot } from '../types'
 
 vi.mock('@clerk/react', () => ({ useAuth: vi.fn() }))
@@ -19,6 +22,10 @@ const context: ToolContextSnapshot = {
 
 function tool(id: string) {
   return WRITING_TOOLS.find((candidate) => candidate.id === id)!
+}
+
+function successfulAIResponse(text: string): Response {
+  return Response.json({ text })
 }
 
 describe('useAIWritingToolRunner', () => {
@@ -40,7 +47,7 @@ describe('useAIWritingToolRunner', () => {
 
   it('runs through the authenticated AI endpoint and returns generated prose', async () => {
     const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('Mara heard the lock turn from the other side.'),
+      successfulAIResponse('Mara heard the lock turn from the other side.'),
     )
     const { result } = renderHook(() => useAIWritingToolRunner('fiction'))
 
@@ -55,24 +62,32 @@ describe('useAIWritingToolRunner', () => {
       preferredApply: 'insert',
     })
     expect(request).toHaveBeenCalledWith(
-      'https://test.convex.site/ai/stream',
+      'https://test.convex.site/ai/tools/run',
       expect.objectContaining({ method: 'POST' }),
     )
     const init = request.mock.calls[0]?.[1]
     expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer clerk-token')
     const body = JSON.parse(String(init?.body)) as {
-      action: string
       text: string
       model: string
-      customPrompt: string
+      instructions: string
+      maxOutputTokens: number
     }
     expect(body).toEqual(expect.objectContaining({
-      action: 'longer',
       model: 'anthropic/claude-sonnet-5',
-      customPrompt: expect.stringContaining('Continue the manuscript exactly at the cursor'),
+      instructions: expect.stringContaining('Continue the manuscript exactly at the cursor'),
+      maxOutputTokens: 512,
     }))
     expect(body.text.startsWith('<before-cursor>')).toBe(true)
-    expect(body.text.length).toBeGreaterThanOrEqual(5_500)
+    expect(body.text.length).toBeLessThan(1_000)
+  })
+
+  it('uses bounded budgets appropriate for each tool output', () => {
+    expect(writingToolOutputBudget('continue-scene')).toBe(512)
+    expect(writingToolOutputBudget('alternate-pov')).toBe(1_536)
+    expect(writingToolOutputBudget('dialogue-audit')).toBe(768)
+    expect(writingToolOutputBudget('what-if')).toBe(768)
+    expect(writingToolOutputBudget('scene-blueprint')).toBe(768)
   })
 
   it.each([
@@ -121,7 +136,7 @@ describe('useAIWritingToolRunner', () => {
     response,
     expectedKind,
   }) => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(response))
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(successfulAIResponse(response))
     const { result } = renderHook(() => useAIWritingToolRunner('fiction'))
 
     let output: Awaited<ReturnType<typeof result.current>> | undefined
@@ -146,14 +161,17 @@ describe('useAIWritingToolRunner', () => {
     expect(request).not.toHaveBeenCalled()
   })
 
-  it('surfaces provider stream errors', async () => {
+  it('surfaces provider errors returned by the writing-tool endpoint', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('__AI_ERROR__:The AI provider rejected the request'),
+      Response.json(
+        { error: 'OpenRouter rejected the request because the key has insufficient credits.' },
+        { status: 502 },
+      ),
     )
     const { result } = renderHook(() => useAIWritingToolRunner('fiction'))
 
     await expect(result.current(tool('continue-scene'), context, {})).rejects.toThrow(
-      'The AI provider rejected the request',
+      'insufficient credits',
     )
   })
 })
